@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>💬 말톡 — 말툴스 회원 라운지</title>
+<meta name="theme-color" content="#E67E22">
+<meta name="description" content="말툴스 회원만의 실시간 채팅 라운지">
+
+<!-- PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="말톡">
+<meta name="mobile-web-app-capable" content="yes">
+
+<!-- 앱 아이콘 (말머리 + 채팅 버블, 주황 그라데이션) -->
+<link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%23E67E22'/><stop offset='100%25' stop-color='%23D35400'/></linearGradient></defs><rect width='180' height='180' rx='36' fill='url(%23g)'/><text x='90' y='115' font-size='90' text-anchor='middle' dominant-baseline='middle'>🐎</text><text x='130' y='65' font-size='40' text-anchor='middle' dominant-baseline='middle'>💬</text></svg>">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%23E67E22'/><stop offset='100%25' stop-color='%23D35400'/></linearGradient></defs><rect width='180' height='180' rx='36' fill='url(%23g)'/><text x='90' y='115' font-size='90' text-anchor='middle' dominant-baseline='middle'>🐎</text><text x='130' y='65' font-size='40' text-anchor='middle' dominant-baseline='middle'>💬</text></svg>">
+
+<!-- Web App Manifest (인라인 data URI) -->
+<script>
+(function() {
+  const iconSvg192 = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><defs><linearGradient id='g' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%23E67E22'/><stop offset='100%' stop-color='%23D35400'/></linearGradient></defs><rect width='192' height='192' rx='38' fill='url(%23g)'/><text x='96' y='120' font-size='95' text-anchor='middle' dominant-baseline='middle'>🐎</text><text x='140' y='70' font-size='42' text-anchor='middle' dominant-baseline='middle'>💬</text></svg>";
+  const iconSvg512 = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><defs><linearGradient id='g' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%23E67E22'/><stop offset='100%' stop-color='%23D35400'/></linearGradient></defs><rect width='512' height='512' rx='102' fill='url(%23g)'/><text x='256' y='320' font-size='260' text-anchor='middle' dominant-baseline='middle'>🐎</text><text x='380' y='180' font-size='110' text-anchor='middle' dominant-baseline='middle'>💬</text></svg>";
+  const manifest = {
+    name: "말톡 — 말툴스 회원 라운지",
+    short_name: "말톡",
+    description: "말툴스 회원만의 실시간 채팅",
+    start_url: "/maltalk.html",
+    scope: "/",
+    display: "standalone",
+    orientation: "portrait-primary",
+    theme_color: "#E67E22",
+    background_color: "#FAF8F3",
+    lang: "ko",
+    icons: [
+      { src: "data:image/svg+xml;utf8," + encodeURIComponent(iconSvg192), sizes: "192x192", type: "image/svg+xml", purpose: "any maskable" },
+      { src: "data:image/svg+xml;utf8," + encodeURIComponent(iconSvg512), sizes: "512x512", type: "image/svg+xml", purpose: "any maskable" },
+    ],
+  };
+  const blob = new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" });
+  const link = document.createElement("link");
+  link.rel = "manifest";
+  link.href = URL.createObjectURL(blob);
+  document.head.appendChild(link);
+})();
+</script>
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', '맑은 고딕', sans-serif;
+  background: #FAF8F3; color: #2C2C2C;
+  display: flex; flex-direction: column;
+}
+#root { display: flex; flex-direction: column; flex: 1; min-height: 0; height: 100vh; }
+.header {
+  padding: 14px 18px; background: linear-gradient(135deg, #E67E22, #D35400);
+  color: white; display: flex; justify-content: space-between; align-items: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1); flex-shrink: 0;
+}
+.header-title { display: flex; align-items: center; gap: 10px; }
+.header-title h1 { font-size: 17px; font-weight: 700; }
+.header-sub { font-size: 11px; opacity: 0.9; margin-top: 2px; }
+.header-btn {
+  background: rgba(255,255,255,0.15); border: none; color: white;
+  font-size: 12px; cursor: pointer; padding: 6px 10px; border-radius: 4px;
+  font-family: inherit;
+}
+.header-btn:hover { background: rgba(255,255,255,0.25); }
+.login-screen {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  padding: 30px; background: linear-gradient(135deg, #FAF8F3 0%, #F5EFE0 100%);
+}
+.login-card {
+  background: white; padding: 30px; border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08); max-width: 320px; width: 100%;
+}
+.login-card h2 { font-size: 20px; margin-bottom: 8px; }
+.login-card p { font-size: 12px; color: #8B8B8B; margin-bottom: 20px; }
+.input-group { margin-bottom: 12px; }
+.input-group label { display: block; font-size: 11px; color: #5D5D5D; font-weight: 600; margin-bottom: 4px; }
+.input-group input { width: 100%; padding: 10px 12px; border: 1px solid #E5E0D5; border-radius: 6px; font-size: 13px; font-family: inherit; outline: none; }
+.input-group input:focus { border-color: #E67E22; }
+.btn-primary { width: 100%; background: linear-gradient(135deg, #E67E22, #D35400); color: white; border: none; padding: 11px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px; font-family: inherit; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.error-msg { background: rgba(231,76,60,0.08); color: #C0392B; padding: 8px 12px; border-radius: 4px; font-size: 12px; margin-bottom: 12px; }
+.login-footer { text-align: center; margin-top: 16px; font-size: 11px; color: #8B8B8B; }
+.login-footer a { color: #E67E22; cursor: pointer; text-decoration: underline; }
+.messages { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: #FAF8F3; min-height: 0; }
+.msg-row { display: flex; gap: 6px; align-items: flex-end; }
+.msg-row.mine { flex-direction: row-reverse; }
+.msg-bubble { max-width: 78%; padding: 8px 12px; border-radius: 14px 14px 14px 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); background: white; color: #2C2C2C; }
+.msg-row.mine .msg-bubble { background: #E67E22; color: white; border-radius: 14px 14px 4px 14px; }
+.msg-author { font-size: 11px; font-weight: 700; margin-bottom: 2px; color: #7A4A22; }
+.msg-author.admin { color: #D35400; }
+.admin-badge { font-size: 9px; margin-left: 4px; background: #E67E22; color: white; padding: 1px 4px; border-radius: 2px; }
+.msg-content { font-size: 13px; line-height: 1.4; word-break: break-word; white-space: pre-wrap; }
+.msg-time { font-size: 9px; color: #8B8B8B; white-space: nowrap; }
+.msg-delete { background: rgba(231,76,60,0.1); border: 1px solid rgba(231,76,60,0.35); border-radius: 4px; cursor: pointer; font-size: 10px; color: #C0392B; padding: 2px 7px; font-weight: 600; margin-top: 2px; font-family: inherit; }
+.msg-delete:hover { background: #E74C3C; color: white; }
+.empty-state { text-align: center; padding: 60px 20px; color: #8B8B8B; }
+.empty-state .emoji { font-size: 48px; margin-bottom: 14px; }
+.empty-state .title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.empty-state .desc { font-size: 11px; }
+.input-area { padding: 10px; border-top: 1px solid #E5E0D5; background: white; position: relative; flex-shrink: 0; }
+.input-row { display: flex; gap: 6px; align-items: center; }
+.emoji-btn { background: transparent; border: none; cursor: pointer; font-size: 24px; padding: 4px; border-radius: 6px; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; line-height: 1; }
+.emoji-btn.active { background: rgba(230,126,34,0.15); }
+.input-msg { flex: 1; padding: 9px 14px; border: 1px solid #E5E0D5; border-radius: 20px; font-size: 13px; font-family: inherit; outline: none; background: #FAF8F3; }
+.send-btn { background: #E67E22; color: white; border: none; border-radius: 50%; width: 38px; height: 38px; cursor: pointer; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.send-btn:disabled { background: #E5E0D5; cursor: not-allowed; }
+.emoji-picker { position: absolute; bottom: 60px; left: 10px; right: 10px; background: white; border: 1px solid #E5E0D5; border-radius: 8px; padding: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10; }
+.emoji-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
+.emoji-grid button { background: none; border: none; cursor: pointer; font-size: 22px; padding: 5px 0; border-radius: 4px; line-height: 1; }
+.emoji-grid button:hover { background: rgba(230,126,34,0.1); transform: scale(1.15); }
+.participants { background: #FAF8F3; border-bottom: 1px solid #E5E0D5; padding: 10px 14px; max-height: 200px; overflow-y: auto; flex-shrink: 0; }
+.participants-header { font-size: 11px; font-weight: 700; color: #5D5D5D; margin-bottom: 8px; display: flex; justify-content: space-between; }
+.participant-item { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 4px; }
+.participant-item.me { background: rgba(230,126,34,0.08); }
+.participant-avatar { width: 24px; height: 24px; border-radius: 50%; background: #7A4A22; color: white; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.participant-avatar.admin { background: #E67E22; }
+.participant-info { flex: 1; min-width: 0; }
+.participant-name { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.participant-meta { font-size: 10px; color: #8B8B8B; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.loading-screen { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #8B8B8B; }
+
+.tab-bar {
+  display: flex;
+  background: white;
+  border-bottom: 1px solid #E5E0D5;
+  flex-shrink: 0;
+}
+.tab-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #8B8B8B;
+  cursor: pointer;
+  font-family: inherit;
+  border-bottom: 3px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  position: relative;
+}
+.tab-btn.active {
+  color: #E67E22;
+  border-bottom-color: #E67E22;
+}
+.tab-btn:hover { background: #FAF8F3; }
+.tab-badge {
+  position: absolute;
+  top: 8px;
+  right: 50%;
+  margin-right: -38px;
+  background: #E74C3C;
+  color: white;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  font-size: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.members-tab {
+  flex: 1;
+  overflow-y: auto;
+  background: #FAF8F3;
+  padding: 14px;
+  min-height: 0;
+}
+.members-tab .empty-state { padding: 80px 20px; }
+.member-card {
+  background: white;
+  padding: 12px 14px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.member-card.me { background: rgba(230,126,34,0.05); border: 1px solid rgba(230,126,34,0.2); }
+.member-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: #7A4A22; color: white; font-size: 16px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.member-avatar.admin { background: #E67E22; }
+.member-info { flex: 1; min-width: 0; }
+.member-name { font-size: 14px; font-weight: 700; color: #2C2C2C; }
+.member-meta { font-size: 11px; color: #8B8B8B; margin-top: 2px; }
+</style>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+</head>
+<body>
+<div id="root"><div class="loading-screen">불러오는 중...</div></div>
+
+<script>
+const SUPABASE_URL = 'https://ivbubhfkavaputcgovpk.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2YnViaGZrYXZhcHV0Y2dvdnBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2OTA5NzYsImV4cCI6MjA5NTI2Njk3Nn0.CtDl9Svev0kne1dgHFs0mNOFzzNzOMLHWd6GZilEyj4';
+const ADMIN_EMAILS = ['admin@noahsoftlab.com', 'hj.lee@noahlabs.co.kr'];
+const COMMON_EMOJIS = ['😀','😄','😆','😅','🤣','😊','😍','🥰','😘','😎','🤔','🤨','😐','😑','😶','🙄','😏','😣','😖','😫','👍','👎','👏','🙌','🙏','💪','🤝','✌️','👌','🤞','❤️','💔','💯','🔥','✨','⭐','🎉','🎊','🎁','🏆','💬','📝','📌','💡','⚡','🚀','🐎','🦄','🎯','📋'];
+
+if (typeof supabase === 'undefined') {
+  document.getElementById('root').innerHTML = '<div class="loading-screen" style="color:red;">Supabase 라이브러리 로드 실패. 새로고침 부탁드립니다.</div>';
+  throw new Error('Supabase library not loaded');
+}
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: false, storage: window.localStorage, flowType: 'implicit' },
+});
+
+async function rawFetch(path, options) {
+  options = options || {};
+  const url = SUPABASE_URL + '/rest/v1/' + path;
+  const headers = {
+    'apikey': SUPABASE_KEY,
+    'Content-Type': 'application/json',
+    'Prefer': options.returnRepresentation ? 'return=representation' : 'return=minimal',
+  };
+  Object.assign(headers, options.headers || {});
+  try {
+    const tokenKeys = Object.keys(localStorage).filter(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+    if (tokenKeys.length > 0) {
+      const sessionRaw = localStorage.getItem(tokenKeys[0]);
+      if (sessionRaw) {
+        const session = JSON.parse(sessionRaw);
+        if (session && session.access_token) headers['Authorization'] = 'Bearer ' + session.access_token;
+      }
+    }
+  } catch (e) {}
+  const response = await fetch(url, {
+    method: options.method || 'GET',
+    headers: headers,
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(function() { return ''; });
+    throw new Error(text || 'HTTP ' + response.status);
+  }
+  // 빈 응답 처리 (201 Created with no body, 204 No Content 등)
+  if (response.status === 204) return null;
+  const text = await response.text();
+  if (!text) return null;
+  try { return JSON.parse(text); } catch (e) { return null; }
+}
+
+function isAdmin(user, profile) {
+  if (profile && profile.is_admin) return true;
+  if (user && user.email && ADMIN_EMAILS.indexOf(user.email.toLowerCase()) >= 0) return true;
+  return false;
+}
+
+function relTime(iso) {
+  try {
+    const d = new Date(iso);
+    const diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 60) return '방금';
+    if (diff < 3600) return Math.floor(diff/60) + '분';
+    if (diff < 86400) return Math.floor(diff/3600) + '시간';
+    return d.toISOString().slice(5,10).replace('-','/');
+  } catch (e) { return ''; }
+}
+
+const useState = React.useState;
+const useEffect = React.useEffect;
+const useRef = React.useRef;
+const h = React.createElement;
+const Fragment = React.Fragment;
+
+function App() {
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(function() {
+    sb.auth.getSession().then(function(res) {
+      const u = res.data.session ? res.data.session.user : null;
+      setUser(u);
+      if (u) loadProfile(u.id);
+      else setLoading(false);
+    }).catch(function() { setLoading(false); });
+
+    const sub = sb.auth.onAuthStateChange(function(event, session) {
+      const u = session ? session.user : null;
+      setUser(u);
+      if (u) loadProfile(u.id);
+      else { setProfile(null); setLoading(false); }
+    });
+    return function() {
+      try { sub.data.subscription.unsubscribe(); } catch (e) {}
+    };
+  }, []);
+
+  async function loadProfile(userId) {
+    try {
+      const profs = await rawFetch('profiles?select=*&id=eq.' + userId);
+      setProfile(profs && profs[0] ? profs[0] : null);
+    } catch (e) {}
+    setLoading(false);
+  }
+
+  if (loading) return h('div', { className: 'loading-screen' }, '불러오는 중...');
+  if (!user) return h(LoginScreen);
+  return h(ChatRoom, { user: user, profile: profile });
+}
+
+function LoginScreen() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleLogin() {
+    if (!email || !password) { setError('이메일과 비밀번호를 입력해주세요'); return; }
+    setSubmitting(true); setError('');
+    try {
+      const res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, password: password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || data.error_description || '로그인 실패');
+      const sessionData = {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        expires_in: data.expires_in,
+        expires_at: data.expires_at || Math.floor(Date.now()/1000) + (data.expires_in || 3600),
+        token_type: data.token_type || 'bearer',
+        user: data.user,
+      };
+      localStorage.setItem('sb-' + SUPABASE_URL.replace('https://', '').split('.')[0] + '-auth-token', JSON.stringify(sessionData));
+      await sb.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token });
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function goToMainSignup() {
+    if (window.opener && !window.opener.closed) {
+      window.opener.focus();
+      alert('회원가입은 메인 사이트에서 진행해주세요. 메인 창에서 가입 후 다시 로그인 부탁드립니다.');
+    } else {
+      window.open('https://www.sapfiori.co.kr', '_blank');
+    }
+  }
+
+  return h('div', { className: 'login-screen' },
+    h('div', { className: 'login-card' },
+      h('h2', null, '💬 말톡 로그인'),
+      h('p', null, '말툴스 회원만 참여 가능한 채팅방입니다.'),
+      error ? h('div', { className: 'error-msg' }, error) : null,
+      h('div', { className: 'input-group' },
+        h('label', null, '이메일'),
+        h('input', { type: 'email', value: email, onChange: function(e) { setEmail(e.target.value); }, placeholder: 'name@example.com', disabled: submitting, onKeyDown: function(e) { if (e.key === 'Enter') handleLogin(); } }),
+      ),
+      h('div', { className: 'input-group' },
+        h('label', null, '비밀번호'),
+        h('input', { type: 'password', value: password, onChange: function(e) { setPassword(e.target.value); }, placeholder: '비밀번호', disabled: submitting, onKeyDown: function(e) { if (e.key === 'Enter') handleLogin(); } }),
+      ),
+      h('button', { className: 'btn-primary', onClick: handleLogin, disabled: submitting }, submitting ? '로그인 중...' : '로그인'),
+      h('div', { className: 'login-footer' },
+        '회원이 아니신가요? ',
+        h('a', { onClick: goToMainSignup }, '말툴스에서 회원가입'),
+      ),
+    ),
+  );
+}
+
+function ChatRoom(props) {
+  const user = props.user;
+  const profile = props.profile;
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [showParticipants, setShowParticipants] = useState(false);
+  const [participants, setParticipants] = useState([]);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [activeTab, setActiveTab] = useState('chat'); // 'chat', 'members', 'dm:userId'
+  const [expandedMemberId, setExpandedMemberId] = useState(null);
+  const [dmTabs, setDmTabs] = useState([]); // [{userId, profile}]
+  const [dmMessages, setDmMessages] = useState({}); // {userId: [messages]}
+  const scrollRef = useRef(null);
+  const inputRef = useRef(null);
+
+  function getDMRoomId(a, b) {
+    return 'dm:' + [a, b].sort().join(':');
+  }
+
+  function openDM(otherProfile) {
+    if (otherProfile.id === user.id) return;
+    setDmTabs(function(prev) {
+      if (prev.find(function(t) { return t.userId === otherProfile.id; })) return prev;
+      return prev.concat([{ userId: otherProfile.id, profile: otherProfile }]);
+    });
+    setActiveTab('dm:' + otherProfile.id);
+    loadDMMessages(otherProfile.id);
+    setExpandedMemberId(null);
+  }
+
+  function closeDM(userId) {
+    setDmTabs(function(prev) { return prev.filter(function(t) { return t.userId !== userId; }); });
+    if (activeTab === 'dm:' + userId) setActiveTab('chat');
+  }
+
+  async function loadDMMessages(otherUserId) {
+    const roomId = getDMRoomId(user.id, otherUserId);
+    try {
+      const msgs = await rawFetch('chat_messages?select=*&room_id=eq.' + encodeURIComponent(roomId) + '&order=created_at.asc&limit=100');
+      const enriched = (msgs || []).map(function(m) {
+        const author = m.user_id === user.id ? profile : (otherUserId === m.user_id ? dmTabs.find(function(t){return t.userId===otherUserId;})?.profile : null);
+        return Object.assign({}, m, { author: author });
+      });
+      setDmMessages(function(prev) { 
+        const newMap = Object.assign({}, prev);
+        newMap[otherUserId] = enriched;
+        return newMap;
+      });
+      setTimeout(function() { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, 100);
+    } catch (e) {
+      console.error('DM 로드 실패:', e);
+    }
+  }
+
+  async function sendDM(otherUserId, content) {
+    const roomId = getDMRoomId(user.id, otherUserId);
+    await rawFetch('chat_messages', {
+      method: 'POST',
+      body: { user_id: user.id, content: content, room_id: roomId },
+    });
+    // 즉시 로컬 추가
+    const newMsg = { 
+      id: 'tmp_' + Date.now(), 
+      user_id: user.id, 
+      content: content, 
+      room_id: roomId, 
+      created_at: new Date().toISOString(),
+      author: profile,
+    };
+    setDmMessages(function(prev) {
+      const newMap = Object.assign({}, prev);
+      newMap[otherUserId] = (newMap[otherUserId] || []).concat([newMsg]);
+      return newMap;
+    });
+    // 잠시 후 재로드 (실제 ID 반영)
+    setTimeout(function() { loadDMMessages(otherUserId); }, 500);
+  }
+
+  useEffect(function() {
+    loadMessages();
+    loadParticipants();
+    setTimeout(function() { if (inputRef.current) inputRef.current.focus(); }, 200);
+
+    const channel = sb.channel('maltalk_' + Date.now())
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: 'room_id=eq.general' }, async function(payload) {
+        const newMsg = payload.new;
+        let author = null;
+        try {
+          const profs = await rawFetch('profiles?select=*&id=eq.' + newMsg.user_id);
+          author = profs && profs[0] ? profs[0] : null;
+        } catch (e) {}
+        setMessages(function(prev) {
+          if (prev.find(function(m) { return m.id === newMsg.id; })) return prev;
+          return prev.concat([Object.assign({}, newMsg, { author: author })]);
+        });
+        setTimeout(function() { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, 50);
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_messages' }, function(payload) {
+        const id = payload.old ? payload.old.id : null;
+        if (id) setMessages(function(prev) { return prev.filter(function(m) { return m.id !== id; }); });
+      })
+      .subscribe();
+
+    const pollTimer = setInterval(loadMessages, 15000);
+
+    return function() {
+      try { sb.removeChannel(channel); } catch (e) {}
+      clearInterval(pollTimer);
+    };
+  }, []);
+
+  async function loadMessages() {
+    try {
+      const msgs = await rawFetch('chat_messages?select=*&room_id=eq.general&order=created_at.asc&limit=100');
+      const userIds = [];
+      (msgs || []).forEach(function(m) { if (userIds.indexOf(m.user_id) < 0) userIds.push(m.user_id); });
+      let profileMap = {};
+      if (userIds.length > 0) {
+        const profs = await rawFetch('profiles?select=*&id=in.(' + userIds.join(',') + ')').catch(function() { return []; });
+        (profs || []).forEach(function(p) { profileMap[p.id] = p; });
+      }
+      setMessages((msgs || []).map(function(m) { return Object.assign({}, m, { author: profileMap[m.user_id] || null }); }));
+      setTimeout(function() { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, 100);
+    } catch (e) {
+      console.error('로드 실패:', e);
+    }
+    setLoading(false);
+  }
+
+  async function loadParticipants() {
+    try {
+      const msgs = await rawFetch('chat_messages?select=user_id&room_id=eq.general&limit=500');
+      const uniqueIds = [];
+      (msgs || []).forEach(function(m) { if (uniqueIds.indexOf(m.user_id) < 0) uniqueIds.push(m.user_id); });
+      if (uniqueIds.length === 0) { setParticipants([]); return; }
+      const profs = await rawFetch('profiles?select=*&id=in.(' + uniqueIds.join(',') + ')');
+      setParticipants(profs || []);
+    } catch (e) {}
+  }
+
+  async function sendMessage() {
+    if (!input.trim() || sending) return;
+    setSending(true);
+    const content = input.trim();
+    setInput('');
+    try {
+      // 활성 탭이 DM이면 DM 전송, 아니면 general
+      if (activeTab && activeTab.startsWith('dm:')) {
+        const otherUserId = activeTab.substring(3);
+        await sendDM(otherUserId, content);
+      } else {
+        await rawFetch('chat_messages', {
+          method: 'POST',
+          body: { user_id: user.id, content: content, room_id: 'general' },
+        });
+      }
+    } catch (e) {
+      alert('전송 실패: ' + e.message);
+      setInput(content);
+    } finally {
+      setSending(false);
+      setTimeout(function() { if (inputRef.current) inputRef.current.focus(); }, 50);
+    }
+  }
+
+  // 활성 DM 탭이 바뀌면 메시지 로드 + 입력창 포커스
+  useEffect(function() {
+    if (activeTab && activeTab.startsWith('dm:')) {
+      const otherUserId = activeTab.substring(3);
+      loadDMMessages(otherUserId);
+    }
+    if (activeTab === 'chat' || (activeTab && activeTab.startsWith('dm:'))) {
+      setTimeout(function() { if (inputRef.current) inputRef.current.focus(); }, 100);
+    }
+  }, [activeTab]);
+
+  // 활성 DM 탭 폴링 (10초)
+  useEffect(function() {
+    if (!activeTab || !activeTab.startsWith('dm:')) return;
+    const otherUserId = activeTab.substring(3);
+    const timer = setInterval(function() { loadDMMessages(otherUserId); }, 10000);
+    return function() { clearInterval(timer); };
+  }, [activeTab]);
+
+  async function deleteSelected() {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`선택한 ${selectedIds.length}개 메시지를 삭제하시겠어요?`)) return;
+    let failed = 0;
+    for (const id of selectedIds) {
+      try {
+        await rawFetch('chat_messages?id=eq.' + id, { method: 'DELETE' });
+      } catch (e) { failed++; }
+    }
+    setMessages(function(prev) { return prev.filter(function(m) { return selectedIds.indexOf(m.id) < 0; }); });
+    setSelectedIds([]);
+    setDeleteMode(false);
+    if (failed > 0) alert(failed + '개 삭제 실패');
+  }
+
+  function toggleSelect(id) {
+    setSelectedIds(function(prev) {
+      if (prev.indexOf(id) >= 0) return prev.filter(function(x) { return x !== id; });
+      return prev.concat([id]);
+    });
+  }
+
+  function exitDeleteMode() {
+    setDeleteMode(false);
+    setSelectedIds([]);
+  }
+
+  async function handleLogout() {
+    if (!confirm('말톡에서 로그아웃하시겠어요?')) return;
+    try { await sb.auth.signOut(); } catch (e) {}
+    Object.keys(localStorage).filter(function(k) { return k.startsWith('sb-'); }).forEach(function(k) { localStorage.removeItem(k); });
+    window.location.reload();
+  }
+
+  return h(Fragment, null,
+    h('div', { className: 'header' },
+      h('div', { className: 'header-title' },
+        h('div', null,
+          h('h1', null, '💬 말톡'),
+          h('div', { className: 'header-sub' }, (profile && (profile.nickname || profile.name)) || user.email.split('@')[0]),
+        ),
+        h('div', { style: { fontSize: 28 } }, '🐎'),
+      ),
+      h('div', { style: { display: 'flex', gap: 6 } },
+        h('button', { className: 'header-btn', onClick: function() { setDeleteMode(function(s) { return !s; }); setSelectedIds([]); setActiveTab('chat'); }, title: '삭제 모드', style: deleteMode ? { background: '#C0392B' } : {} }, '🗑'),
+        h('button', { className: 'header-btn', onClick: handleLogout, title: '로그아웃' }, '로그아웃'),
+      ),
+    ),
+    deleteMode ? h('div', { style: { background: '#C0392B', color: 'white', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, fontWeight: 600, flexShrink: 0 } },
+      h('span', null, '🗑 삭제할 메시지를 클릭하세요'),
+      h('div', { style: { display: 'flex', gap: 8 } },
+        h('button', { onClick: exitDeleteMode, style: { background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' } }, '취소'),
+        selectedIds.length > 0 ? h('button', { onClick: deleteSelected, style: { background: 'white', border: 'none', color: '#C0392B', padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit' } }, '선택한 ' + selectedIds.length + '개 삭제') : null,
+      ),
+    ) : null,
+    // 탭 바
+    h('div', { className: 'tab-bar' },
+      h('button', { 
+        className: 'tab-btn' + (activeTab === 'members' ? ' active' : ''),
+        onClick: function() { setActiveTab('members'); if (participants.length === 0) loadParticipants(); }
+      }, '👥 회원'),
+      h('button', { 
+        className: 'tab-btn' + (activeTab === 'chat' ? ' active' : ''),
+        onClick: function() { setActiveTab('chat'); }
+      }, '💬 전체'),
+      dmTabs.map(function(tab) {
+        return h('div', { key: tab.userId, style: { display: 'flex', alignItems: 'center', borderRight: '1px solid #E5E0D5' } },
+          h('button', { 
+            className: 'tab-btn' + (activeTab === 'dm:' + tab.userId ? ' active' : ''),
+            style: { borderRight: 'none', flex: 'none', padding: '12px 10px 12px 14px' },
+            onClick: function() { setActiveTab('dm:' + tab.userId); loadDMMessages(tab.userId); }
+          }, '💌 ' + (tab.profile.nickname || tab.profile.name || '익명').substring(0, 8)),
+          h('button', { 
+            onClick: function(e) { e.stopPropagation(); closeDM(tab.userId); },
+            style: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#8B8B8B', padding: '0 8px 0 0' },
+            title: '탭 닫기',
+          }, '✕'),
+        );
+      }),
+    ),
+    // 회원관리 탭
+    activeTab === 'members' ? h('div', { className: 'members-tab' },
+      participants.length === 0 
+        ? h('div', { className: 'empty-state' },
+            h('div', { className: 'emoji' }, '👥'),
+            h('div', { className: 'title' }, '아직 회원이 없어요'),
+            h('div', { className: 'desc' }, '첫 메시지가 등록되면 표시됩니다'),
+          )
+        : h('div', null,
+            h('div', { style: { fontSize: 11, color: '#5D5D5D', fontWeight: 700, marginBottom: 10, padding: '0 4px' } }, '👥 말톡 참여 회원 (' + participants.length + '명)'),
+            participants.map(function(p) {
+              const isAdminP = p.is_admin || (p.email && ADMIN_EMAILS.indexOf(p.email.toLowerCase()) >= 0);
+              const isMeP = p.id === user.id;
+              const isExpanded = expandedMemberId === p.id;
+              return h('div', { key: p.id },
+                h('div', { 
+                  className: 'member-card' + (isMeP ? ' me' : ''),
+                  style: { cursor: 'pointer' },
+                  onClick: function() { setExpandedMemberId(isExpanded ? null : p.id); },
+                },
+                  h('div', { className: 'member-avatar' + (isAdminP ? ' admin' : '') }, (p.nickname || p.name || '?').charAt(0).toUpperCase()),
+                  h('div', { className: 'member-info' },
+                    h('div', { className: 'member-name' },
+                      (p.nickname || p.name || '익명'),
+                      isMeP ? h('span', { style: { fontSize: 10, marginLeft: 6, color: '#E67E22', fontWeight: 600 } }, '(나)') : null,
+                      isAdminP ? h('span', { className: 'admin-badge', style: { fontSize: 10 } }, '운영자') : null,
+                    ),
+                  ),
+                  h('div', { style: { fontSize: 14, color: '#8B8B8B' } }, isExpanded ? '▲' : '▼'),
+                ),
+                isExpanded ? h('div', { 
+                  style: { 
+                    background: 'white', 
+                    margin: '-8px 0 8px 0',
+                    padding: '12px 14px',
+                    borderRadius: '0 0 8px 8px',
+                    border: '1px solid rgba(230,126,34,0.2)',
+                    borderTop: 'none',
+                  }
+                },
+                  // 이메일만 표시
+                  p.email ? h('div', { style: { display: 'grid', gridTemplateColumns: '70px 1fr', gap: '4px 12px', fontSize: 12 } },
+                    h('div', { style: { color: '#8B8B8B', fontWeight: 600 } }, '이메일'),
+                    h('div', { style: { fontSize: 12, wordBreak: 'break-all' } }, p.email),
+                  ) : h('div', { style: { fontSize: 11, color: '#8B8B8B', textAlign: 'center', padding: 4 } }, '추가 정보 없음'),
+                  // 1:1 메시지 보내기 버튼
+                  !isMeP ? h('button', {
+                    onClick: function() { openDM(p); },
+                    style: {
+                      marginTop: 12,
+                      width: '100%',
+                      padding: '10px',
+                      background: 'linear-gradient(135deg, #E67E22, #D35400)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      fontFamily: 'inherit',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                    }
+                  }, '💌 1:1 메시지 보내기') : h('div', {
+                    style: { marginTop: 12, fontSize: 11, color: '#8B8B8B', textAlign: 'center', fontStyle: 'italic' }
+                  }, '본인 프로필'),
+                ) : null,
+              );
+            }),
+          ),
+    ) : null,
+    // 채팅 탭 또는 DM 탭
+    (activeTab === 'chat' || activeTab.startsWith('dm:')) ? h('div', { className: 'messages', ref: scrollRef },
+      (function() {
+        const isDM = activeTab.startsWith('dm:');
+        const dmUserId = isDM ? activeTab.substring(3) : null;
+        const currentMessages = isDM ? (dmMessages[dmUserId] || []) : messages;
+        const dmTab = isDM ? dmTabs.find(function(t) { return t.userId === dmUserId; }) : null;
+        if (loading && currentMessages.length === 0) {
+          return h('div', { style: { textAlign: 'center', padding: 40, color: '#8B8B8B', fontSize: 13 } }, '불러오는 중...');
+        }
+        if (currentMessages.length === 0) {
+          return h('div', { className: 'empty-state' },
+            h('div', { className: 'emoji' }, isDM ? '💌' : '💬'),
+            h('div', { className: 'title' }, isDM ? ((dmTab && dmTab.profile && (dmTab.profile.nickname || dmTab.profile.name)) || '익명') + '님과 1:1 대화' : '아직 메시지가 없어요'),
+            h('div', { className: 'desc' }, '첫 메시지를 보내보세요!'),
+          );
+        }
+        return currentMessages.map(function(msg) {
+          const isMine = msg.user_id === user.id;
+          const isAdminMsg = (msg.author && msg.author.is_admin) || (msg.author && msg.author.email && ADMIN_EMAILS.indexOf(msg.author.email.toLowerCase()) >= 0);
+          const canDelete = isMine || isAdmin(user, profile);
+          const isSelected = selectedIds.indexOf(msg.id) >= 0;
+          const inDeleteMode = deleteMode && canDelete;
+          const bubbleStyle = isSelected ? { outline: '3px solid #C0392B', outlineOffset: 2, transform: 'scale(0.98)' } : {};
+          return h('div', { key: msg.id, className: 'msg-row' + (isMine ? ' mine' : ''),
+            style: inDeleteMode ? { cursor: 'pointer' } : {},
+            onClick: inDeleteMode ? function() { toggleSelect(msg.id); } : null,
+          },
+            h('div', { className: 'msg-bubble', style: bubbleStyle },
+              !isMine ? h('div', { className: 'msg-author' + (isAdminMsg ? ' admin' : '') },
+                (msg.author && (msg.author.nickname || msg.author.name)) || '익명',
+                isAdminMsg ? h('span', { className: 'admin-badge' }, '운영자') : null,
+              ) : null,
+              h('div', { className: 'msg-content' }, msg.content),
+            ),
+            h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: isMine ? 'flex-end' : 'flex-start', gap: 2 } },
+              h('div', { className: 'msg-time' }, relTime(msg.created_at)),
+              inDeleteMode ? h('div', { style: { fontSize: 14, color: isSelected ? '#C0392B' : '#CCC' } }, isSelected ? '☑' : '☐') : null,
+            ),
+          );
+        });
+      })(),
+    ) : null,
+    (activeTab === 'chat' || activeTab.startsWith('dm:')) ? h('div', { className: 'input-area' },
+      showEmojiPicker ? h('div', { className: 'emoji-picker' },
+        h('div', { style: { fontSize: 11, fontWeight: 600, color: '#5D5D5D', marginBottom: 6, display: 'flex', justifyContent: 'space-between' } },
+          h('span', null, '이모지 선택'),
+          h('button', { onClick: function() { setShowEmojiPicker(false); }, style: { background: 'none', border: 'none', cursor: 'pointer', color: '#8B8B8B', fontSize: 12 } }, '✕'),
+        ),
+        h('div', { className: 'emoji-grid' },
+          COMMON_EMOJIS.map(function(emoji) {
+            return h('button', { key: emoji, onClick: function() { setInput(function(p) { return p + emoji; }); setShowEmojiPicker(false); setTimeout(function() { if (inputRef.current) inputRef.current.focus(); }, 50); } }, emoji);
+          }),
+        ),
+      ) : null,
+      h('div', { className: 'input-row' },
+        h('button', { className: 'emoji-btn' + (showEmojiPicker ? ' active' : ''), onClick: function() { setShowEmojiPicker(function(s) { return !s; }); }, title: '이모지 선택' }, '😊'),
+        h('input', {
+          ref: inputRef,
+          className: 'input-msg',
+          type: 'text',
+          value: input,
+          onChange: function(e) { setInput(e.target.value); },
+          onKeyDown: function(e) { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } },
+          placeholder: '메시지를 입력하세요...',
+          disabled: sending,
+          maxLength: 1000,
+        }),
+        h('button', { className: 'send-btn', onClick: sendMessage, disabled: !input.trim() || sending, title: '전송' }, '➤'),
+      ),
+    ) : null,
+  );
+}
+
+const rootEl = document.getElementById('root');
+const root = ReactDOM.createRoot(rootEl);
+root.render(h(App));
+
+// Service Worker 등록 (오프라인 캐시)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/maltalk-sw.js')
+      .then(function(reg) { console.log('[PWA] Service Worker 등록 완료:', reg.scope); })
+      .catch(function(err) { console.warn('[PWA] Service Worker 등록 실패:', err); });
+  });
+}
+</script>
+
+</body>
+</html>
