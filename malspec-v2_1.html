@@ -373,18 +373,18 @@ textarea { resize: vertical; }
 /* ============ Choice cards (Step 1) ============ */
 .choice-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
 }
 
 .choice-card {
   border: 2px solid var(--border);
   border-radius: 10px;
-  padding: 16px 18px;
+  padding: 14px 12px;
   cursor: pointer;
   background: var(--bg-white);
   transition: all 0.15s;
-  text-align: left;
+  text-align: center;
   font-family: inherit;
   width: 100%;
 }
@@ -402,20 +402,20 @@ textarea { resize: vertical; }
 
 .choice-icon {
   font-size: 24px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .choice-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text);
   margin-bottom: 4px;
 }
 
 .choice-desc {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-sub);
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 /* ============ Forms ============ */
@@ -937,7 +937,7 @@ textarea { resize: vertical; }
   .main-header { padding: 12px 16px; }
   .content { padding: 16px; }
   .card { padding: 18px 20px; }
-  .choice-grid { grid-template-columns: 1fr; }
+  .choice-grid { grid-template-columns: repeat(2, 1fr); }
   .form-grid { grid-template-columns: 1fr; }
   .form-field.span-2 { grid-column: span 1; }
   .stepper { padding: 14px 18px; overflow-x: auto; }
@@ -1196,7 +1196,7 @@ function printToPdf() {
 }
 
 // ============ Gemini API ============
-async function callGemini(apiKey, model, prompt, images = []) {
+async function callGemini(apiKey, model, prompt, images = [], retryCount = 0) {
   const parts = [];
   parts.push({ text: prompt });
   for (const img of images) {
@@ -1225,7 +1225,17 @@ async function callGemini(apiKey, model, prompt, images = []) {
   
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error?.message || `API 오류 (${res.status})`);
+    const errMsg = err.error?.message || `API 오류 (${res.status})`;
+    
+    // 503 (과부하) 시 자동 재시도 최대 2회
+    if (res.status === 503 && retryCount < 2) {
+      const waitMs = (retryCount + 1) * 4000; // 4초, 8초
+      console.log(`[Retry] 503 received, retry ${retryCount + 1}/2 after ${waitMs}ms`);
+      await new Promise(r => setTimeout(r, waitMs));
+      return callGemini(apiKey, model, prompt, images, retryCount + 1);
+    }
+    
+    throw new Error(errMsg);
   }
   
   const data = await res.json();
@@ -2361,6 +2371,7 @@ function App() {
       let msg = e.message;
       if (msg.includes('API_KEY')) msg = 'API 키가 잘못되었습니다. 설정에서 확인해주세요.';
       else if (msg.includes('quota') || msg.includes('429')) msg = '일일 한도 초과. 내일 다시 시도하거나 다른 모델을 선택해주세요.';
+      else if (msg.includes('high demand') || msg.includes('503') || msg.includes('overloaded')) msg = '🚦 Gemini 서버 일시 과부하 (Google 측 문제)\n\n즉시 해결:\n• 우측 상단 ⚙️ → 모델을 "gemini-2.5-flash-lite" 로 변경\n• 또는 5~10분 후 재시도\n\n* 한준님 잘못이 아니며, 입력 내용은 보존됩니다.';
       else if (msg.includes('safety')) msg = '안전 필터에 걸렸어요. 입력 내용을 조금 다듬어주세요.';
       else if (msg.includes('Failed to fetch')) msg = '네트워크 오류. 인터넷 연결을 확인해주세요. (입력 내용은 보존됨)';
       alert('❌ 생성 실패\n\n' + msg + '\n\n✅ 입력하신 내용은 모두 그대로 보존되어 있으니, 다시 ✨ 생성 버튼을 눌러보세요.');
