@@ -2059,6 +2059,17 @@ function ManualForm({ form, setForm, onGenerate, loading }) {
   const canGenerate = form.changeType && form.title && form.programId && (!isCopy || form.newProgramId) && (form.reason || form.content);
   
   return h(Fragment, null,
+    // 저장 상태 표시
+    h('div', { 
+      style: { 
+        background: '#DFF5E5', color: '#1F5C36',
+        padding: '8px 14px', borderRadius: 6, marginBottom: 12,
+        fontSize: 12, display: 'flex', alignItems: 'center', gap: 6,
+      } 
+    },
+      '💾 자동 저장됨 — 새로고침해도 입력 내용 안 날아가요',
+    ),
+    
     // 변경 유형
     h('div', { className: 'card' },
       h('div', { className: 'card-title' }, '🎯 변경 유형'),
@@ -2255,19 +2266,28 @@ function ManualForm({ form, setForm, onGenerate, loading }) {
 function App() {
   const [view, setView] = useState('wizard'); // wizard | history-view
   const [step, setStep] = useState(() => lsGet(LS_KEY_DRAFT_RESULT, '') ? 4 : 1);
-  const [form, setForm] = useState(() => lsGet(LS_KEY_DRAFT, {
-    changeType: '',
-    title: '',
-    programId: '',
-    newProgramId: '',
-    companyCode: '',
-    requester: '',
-    assignee: '',
-    reason: '',
-    content: '',
-    additionalInfo: '',
-    images: [],
-  }));
+  const [form, setForm] = useState(() => {
+    let saved = lsGet(LS_KEY_DRAFT, null);
+    if (!saved || !saved.changeType) {
+      try { 
+        const backup = sessionStorage.getItem(LS_KEY_DRAFT + '_backup');
+        if (backup) saved = JSON.parse(backup);
+      } catch {}
+    }
+    return saved || {
+      changeType: '',
+      title: '',
+      programId: '',
+      newProgramId: '',
+      companyCode: '',
+      requester: '',
+      assignee: '',
+      reason: '',
+      content: '',
+      additionalInfo: '',
+      images: [],
+    };
+  });
   const [result, setResult] = useState(() => lsGet(LS_KEY_DRAFT_RESULT, ''));
   const [loading, setLoading] = useState(false);
   const [apiKey, setApiKey] = useState(() => lsGet(LS_KEY_API, ''));
@@ -2279,16 +2299,20 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mode, setMode] = useState(() => lsGet(LS_KEY_MODE, 'manual')); // 'wizard' | 'manual'
   
-  // Auto-save draft
+  // Auto-save draft (300ms 디바운스 + sessionStorage 백업)
   useEffect(() => {
-    const t = setTimeout(() => lsSet(LS_KEY_DRAFT, form), 1000);
+    const t = setTimeout(() => {
+      lsSet(LS_KEY_DRAFT, form);
+      try { sessionStorage.setItem(LS_KEY_DRAFT + '_backup', JSON.stringify(form)); } catch {}
+    }, 300);
     return () => clearTimeout(t);
   }, [form]);
   
-  // Auto-save result (CRITICAL - so it doesn't disappear)
+  // Auto-save result (즉시 + sessionStorage 백업)
   useEffect(() => {
-    const t = setTimeout(() => lsSet(LS_KEY_DRAFT_RESULT, result), 500);
-    return () => clearTimeout(t);
+    if (!result) return;
+    lsSet(LS_KEY_DRAFT_RESULT, result);
+    try { sessionStorage.setItem(LS_KEY_DRAFT_RESULT + '_backup', result); } catch {}
   }, [result]);
   
   const saveApiKey = (k, m) => {
