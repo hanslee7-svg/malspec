@@ -717,10 +717,76 @@ textarea { resize: vertical; }
 .result-content .callout-body p:first-child { margin-top: 0; }
 .result-content .callout-body p:last-child { margin-bottom: 0; }
 
-/* Print-friendly */
+/* Print-friendly (PDF 출력용) */
 @media print {
-  .sidebar, .main-header, .wizard-nav, .result-toolbar { display: none !important; }
-  .result-content { border: none; box-shadow: none; padding: 0; }
+  body { 
+    background: white !important;
+    font-family: 'Pretendard Variable', '맑은 고딕', sans-serif !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  /* UI 요소 모두 숨김 */
+  .sidebar, .main-header, .result-toolbar, .wizard-nav, 
+  .stepper, .toast, .modal-backdrop, .loading-overlay,
+  .btn-menu { display: none !important; }
+  
+  /* 레이아웃 */
+  .app { display: block !important; height: auto !important; }
+  .main { overflow: visible !important; height: auto !important; }
+  .content { padding: 0 !important; max-width: 100% !important; }
+  
+  /* 결과 카드 */
+  .result-content { 
+    border: none !important; 
+    box-shadow: none !important; 
+    padding: 0 !important;
+    font-size: 11pt !important;
+    background: white !important;
+  }
+  
+  /* 제목 헤더 박스 */
+  .content > div:first-child {
+    background: white !important;
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+    page-break-after: avoid;
+  }
+  
+  /* h1 */
+  .result-content h1 {
+    background: #E5F1F8 !important;
+    color: #0070BA !important;
+    page-break-after: avoid;
+    page-break-before: auto;
+  }
+  
+  /* h2 / h3 */
+  .result-content h2 { 
+    page-break-after: avoid;
+    background: #F7F9FB !important;
+  }
+  .result-content h3 { page-break-after: avoid; }
+  
+  /* 표·다이어그램은 페이지 중간에 끊지 않기 */
+  .result-content table,
+  .result-content .mermaid,
+  .result-content pre,
+  .result-content .callout { 
+    page-break-inside: avoid; 
+  }
+  
+  /* Mermaid SVG 크기 조절 */
+  .result-content .mermaid svg {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+  
+  /* 페이지 여백 */
+  @page {
+    margin: 15mm 12mm;
+    size: A4;
+  }
 }
 
 /* ============ Modal ============ */
@@ -944,6 +1010,7 @@ const LS_KEY_MODEL = 'malspec_v2_model';
 const LS_KEY_HISTORY = 'malspec_v2_history';
 const LS_KEY_DRAFT = 'malspec_v2_draft';
 const LS_KEY_DRAFT_RESULT = 'malspec_v2_draft_result';
+const LS_KEY_MODE = 'malspec_v2_mode';
 const LS_KEY_SETTINGS = 'malspec_v2_settings';
 
 const CHANGE_TYPES = [
@@ -1069,30 +1136,63 @@ function downloadFile(filename, content, mime = 'text/plain') {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// Word export (HTML wrapping for Word)
+// Word export (HTML wrapping for Word) - Mermaid 코드를 텍스트로 대체
 function exportToWord(title, htmlContent) {
+  // Mermaid SVG → 안내 텍스트로 대체 (워드가 SVG 못 그림)
+  const cleanedHtml = htmlContent.replace(
+    /<div class="mermaid"[^>]*>([\s\S]*?)<\/div>/g, 
+    '<div style="background:#F4F6F8;padding:12pt;border:1pt dashed #999;margin:10pt 0;"><b>📊 다이어그램 (Mermaid)</b><br><i style="color:#666;font-size:10pt">※ 다이어그램은 PDF 출력 시 정상 표시됩니다. 워드에서는 코드로 표시됩니다.</i><pre style="font-family:Consolas;font-size:10pt;margin-top:8pt">$1</pre></div>'
+  );
+  
   const wordHtml = `<!DOCTYPE html>
 <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
 <head>
 <meta charset='utf-8'>
 <title>${title}</title>
+<!--[if gte mso 9]>
+<xml>
+  <w:WordDocument>
+    <w:View>Print</w:View>
+    <w:Zoom>100</w:Zoom>
+    <w:DoNotOptimizeForBrowser/>
+  </w:WordDocument>
+</xml>
+<![endif]-->
 <style>
-body { font-family: '맑은 고딕', sans-serif; font-size: 11pt; line-height: 1.6; }
-h1 { font-size: 18pt; color: #0070BA; border-bottom: 2px solid #0070BA; padding-bottom: 6pt; }
-h2 { font-size: 14pt; color: #005A94; margin-top: 18pt; }
-h3 { font-size: 12pt; }
-table { border-collapse: collapse; width: 100%; }
-th, td { border: 1px solid #999; padding: 6pt 10pt; }
-th { background: #F0F4F7; font-weight: bold; }
+@page WordSection1 { size: 21cm 29.7cm; margin: 2cm 2cm; }
+div.WordSection1 { page: WordSection1; }
+body { font-family: '맑은 고딕', sans-serif; font-size: 11pt; line-height: 1.6; color: #1A1F26; }
+h1 { font-size: 20pt; color: #0070BA; border-bottom: 2pt solid #0070BA; padding-bottom: 6pt; page-break-after: avoid; }
+h2 { font-size: 14pt; color: #005A94; margin-top: 18pt; page-break-after: avoid; background: #F4F6F8; padding: 4pt 8pt; border-left: 4pt solid #0070BA; }
+h3 { font-size: 12pt; color: #354A5F; page-break-after: avoid; }
+table { border-collapse: collapse; width: 100%; margin: 10pt 0; page-break-inside: avoid; }
+th, td { border: 1pt solid #999; padding: 6pt 10pt; vertical-align: top; }
+th { background: #E5F1F8; color: #005A94; font-weight: bold; }
+tr:nth-child(even) { background: #F8FAFC; }
 code { background: #F0F4F7; padding: 1pt 4pt; font-family: 'Consolas'; font-size: 10pt; }
-pre { background: #F4F6F8; padding: 8pt; border-left: 3pt solid #0070BA; font-family: 'Consolas'; font-size: 10pt; }
+pre { background: #F4F6F8; padding: 10pt; border-left: 3pt solid #0070BA; font-family: 'Consolas'; font-size: 10pt; white-space: pre-wrap; }
+p { margin: 6pt 0; }
+ul, ol { margin: 6pt 0; padding-left: 24pt; }
+li { margin: 3pt 0; }
+.callout { padding: 10pt; margin: 10pt 0; border-left: 4pt solid; }
+.callout-info { background: #EFF6FB; border-color: #0070BA; }
+.callout-warn { background: #FFF8E5; border-color: #E67E22; }
+.callout-danger { background: #FCE4E4; border-color: #C0392B; }
+.callout-success { background: #DFF5E5; border-color: #2D8659; }
 </style>
 </head>
 <body>
-${htmlContent}
+<div class='WordSection1'>
+${cleanedHtml}
+</div>
 </body>
 </html>`;
   downloadFile(title + '.doc', wordHtml, 'application/msword');
+}
+
+// PDF 출력 (브라우저 print 기능)
+function printToPdf() {
+  window.print();
 }
 
 // ============ Gemini API ============
@@ -1148,6 +1248,7 @@ function commonHeader(form, typeLabel) {
 ## 입력 정보
 
 **유형**: ${typeLabel}
+**프로그램 제목**: ${form.title || '(미입력)'}
 **대상 프로그램 ID**: ${form.programId || '(미입력)'}
 ${form.newProgramId ? '**신규 프로그램 ID**: ' + form.newProgramId : ''}
 **회사 코드**: ${form.companyCode || '(미입력)'}
@@ -1176,13 +1277,13 @@ function buildPromptNew(form) {
 
 다음 마크다운 양식을 정확히 지키세요:
 
-# 🆕 ${form.programId || '신규 프로그램'} 개발 명세서
+# 🆕 ${form.title || form.programId || '신규 프로그램'} 개발 명세서
 
 ## 📌 1. 프로그램 개요
 | 항목 | 내용 |
 |------|------|
 | 프로그램 ID | ${form.programId || '[명세 필요]'} |
-| 프로그램명 | [한글명] |
+| 프로그램명 | ${form.title || '[명세 필요]'} |
 | 트랜잭션 코드 | [TCODE - 없으면 N/A] |
 | 개발 유형 | 신규 |
 | 개발 목적 | [한 줄 요약] |
@@ -1359,7 +1460,7 @@ function buildPromptModify(form) {
 
 반드시 다음 마크다운 양식으로 작성하세요.
 
-# ${form.programId || '변경 명세서'} 변경 명세
+# ${form.title || form.programId || '변경 명세서'} 변경 명세
 
 ## 1. 개요
 [프로그램 변경의 목적과 핵심 내용을 2-3 문장으로 요약]
@@ -1368,6 +1469,7 @@ function buildPromptModify(form) {
 | 항목 | 내용 |
 |------|------|
 | 변경 유형 | ${typeLabel} |
+| 프로그램 제목 | ${form.title || ''} |
 | 대상 프로그램 ID | ${form.programId || ''} |
 ${form.newProgramId ? '| 신규 프로그램 ID | ' + form.newProgramId + ' |' : ''}
 | 회사 코드 | ${form.companyCode || ''} |
@@ -1425,11 +1527,12 @@ function buildPromptBugfix(form) {
 
 다음 마크다운 양식으로 작성:
 
-# 🐛 ${form.programId || '버그'} 수정 명세
+# 🐛 ${form.title || form.programId || '버그'} 수정 명세
 
 ## 1. 결함 개요
 | 항목 | 내용 |
 |------|------|
+| 프로그램 제목 | ${form.title || ''} |
 | 프로그램 ID | ${form.programId || ''} |
 | 회사 코드 | ${form.companyCode || ''} |
 | 발견일 | [TBD] |
@@ -1616,6 +1719,18 @@ function Step2({ form, setForm, onNext, onBack }) {
       h('div', { className: 'card-title' }, '📋 기본 정보'),
       h('div', { className: 'card-desc' }, '명세서 헤더에 들어갈 정보입니다.'),
       h('div', { className: 'form-grid' },
+        h('div', { className: 'form-field span-2' },
+          h('div', { className: 'field-label' }, 
+            '프로그램 제목 (한글명) ',
+            h('span', { className: 'field-required' }, '*'),
+          ),
+          h('input', { 
+            className: 'field-input',
+            value: form.title || '',
+            onChange: (e) => setForm({ ...form, title: e.target.value }),
+            placeholder: '예: 매출 채권 미수금 자동 분개 프로그램',
+          }),
+        ),
         h('div', { className: 'form-field' },
           h('div', { className: 'field-label' }, 
             isCopy ? '원본 프로그램 ID' : '프로그램 ID',
@@ -1640,7 +1755,7 @@ function Step2({ form, setForm, onNext, onBack }) {
             placeholder: 'ZFIRI4620',
           }),
         ) : null,
-        h('div', { className: 'form-field' },
+        h('div', { className: 'form-field' + (isCopy ? ' span-2' : '') },
           h('div', { className: 'field-label' }, '회사 코드 ',
             h('span', { className: 'field-hint' }, '(여러 개면 콤마)'),
           ),
@@ -1675,7 +1790,7 @@ function Step2({ form, setForm, onNext, onBack }) {
       h('button', { className: 'btn-ghost', onClick: onBack }, '← 이전'),
       h('button', { 
         className: 'btn-primary', 
-        disabled: !form.programId || (isCopy && !form.newProgramId),
+        disabled: !form.title || !form.programId || (isCopy && !form.newProgramId),
         onClick: onNext 
       }, '다음 →'),
     ),
@@ -1827,11 +1942,15 @@ function Step4({ result, setResult, form, onBack, onSave, onRegenerate }) {
           typeIcon + ' ' + (typeLabel || '명세서')
         ),
         h('div', { style: { fontSize: 18, fontWeight: 700, color: 'var(--text)' } }, 
-          (form.programId || '제목 없음') + 
-          (form.newProgramId ? ' → ' + form.newProgramId : '')
+          form.title || form.programId || '제목 없음'
         ),
-        h('div', { style: { fontSize: 11, color: 'var(--text-sub)', marginTop: 4 } },
-          [form.companyCode, form.requester, form.assignee].filter(Boolean).join(' · ') || '담당자 미입력',
+        h('div', { style: { fontSize: 12, color: 'var(--text-sub)', marginTop: 4 } },
+          [
+            form.programId + (form.newProgramId ? ' → ' + form.newProgramId : ''),
+            form.companyCode, 
+            form.requester, 
+            form.assignee
+          ].filter(Boolean).join(' · ') || '담당자 미입력',
         ),
       ),
       h('div', { style: { fontSize: 11, color: 'var(--success)' } }, 
@@ -1858,10 +1977,19 @@ function Step4({ result, setResult, form, onBack, onSave, onRegenerate }) {
       h('button', { 
         className: 'btn-ghost', 
         onClick: () => {
-          const title = (form.programId || '변경명세') + '_명세서';
+          const title = (form.title || form.programId || '변경명세') + '_명세서';
           exportToWord(title, mdToHtml(result));
         }
       }, '📄 Word 다운로드'),
+      h('button', { 
+        onClick: printToPdf,
+        title: '브라우저 인쇄창에서 "PDF로 저장" 선택',
+        style: { 
+          background: '#C0392B', color: 'white', border: 'none',
+          padding: '8px 16px', borderRadius: 6, fontSize: 13, 
+          fontWeight: 700, cursor: 'pointer',
+        },
+      }, '🖨 PDF 출력 ⭐'),
       h('button', { 
         className: 'btn-ghost', 
         onClick: () => downloadFile((form.programId || 'spec') + '.md', result, 'text/markdown')
@@ -1903,12 +2031,233 @@ function showToast(msg) {
   toastTimer = setTimeout(() => el.remove(), 2500);
 }
 
-// ============ Main App ============
+// ============ Manual Form (한 페이지에 모든 필드) ============
+function ManualForm({ form, setForm, onGenerate, loading }) {
+  const fileInputRef = useRef(null);
+  const isCopy = form.changeType === 'copy';
+  
+  const handleFileUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    const newImages = [];
+    for (const f of files) {
+      if (!f.type.startsWith('image/')) continue;
+      if (f.size > 4 * 1024 * 1024) {
+        alert(f.name + ' 은 4MB 초과로 제외됨');
+        continue;
+      }
+      const data = await fileToBase64(f);
+      newImages.push({ id: uuid(), name: f.name, data, size: f.size });
+    }
+    setForm({ ...form, images: [...(form.images || []), ...newImages] });
+    e.target.value = '';
+  };
+  
+  const removeImage = (id) => {
+    setForm({ ...form, images: (form.images || []).filter(i => i.id !== id) });
+  };
+  
+  const canGenerate = form.changeType && form.title && form.programId && (!isCopy || form.newProgramId) && (form.reason || form.content);
+  
+  return h(Fragment, null,
+    // 변경 유형
+    h('div', { className: 'card' },
+      h('div', { className: 'card-title' }, '🎯 변경 유형'),
+      h('div', { className: 'choice-grid' },
+        CHANGE_TYPES.map(t =>
+          h('button', { 
+            key: t.id,
+            className: 'choice-card ' + (form.changeType === t.id ? 'selected' : ''),
+            onClick: () => setForm({ ...form, changeType: t.id }),
+          },
+            h('div', { className: 'choice-icon' }, t.icon),
+            h('div', { className: 'choice-title' }, t.title),
+            h('div', { className: 'choice-desc' }, t.desc),
+          )
+        ),
+      ),
+    ),
+    
+    // 기본 정보
+    h('div', { className: 'card' },
+      h('div', { className: 'card-title' }, '📋 기본 정보'),
+      h('div', { className: 'form-grid' },
+        h('div', { className: 'form-field span-2' },
+          h('div', { className: 'field-label' }, 
+            '프로그램 제목 (한글명)',
+            h('span', { className: 'field-required' }, ' *'),
+          ),
+          h('input', { 
+            className: 'field-input',
+            value: form.title || '',
+            onChange: (e) => setForm({ ...form, title: e.target.value }),
+            placeholder: '예: 매출 채권 미수금 자동 분개 프로그램',
+          }),
+        ),
+        h('div', { className: 'form-field' },
+          h('div', { className: 'field-label' }, 
+            isCopy ? '원본 프로그램 ID' : '프로그램 ID',
+            h('span', { className: 'field-required' }, ' *'),
+          ),
+          h('input', { 
+            className: 'field-input',
+            value: form.programId || '',
+            onChange: (e) => setForm({ ...form, programId: e.target.value }),
+            placeholder: 'ZFIRI4610',
+          }),
+        ),
+        isCopy ? h('div', { className: 'form-field' },
+          h('div', { className: 'field-label' }, 
+            '신규 프로그램 ID',
+            h('span', { className: 'field-required' }, ' *'),
+          ),
+          h('input', { 
+            className: 'field-input',
+            value: form.newProgramId || '',
+            onChange: (e) => setForm({ ...form, newProgramId: e.target.value }),
+            placeholder: 'ZFIRI4620',
+          }),
+        ) : h('div', { className: 'form-field' },
+          h('div', { className: 'field-label' }, '회사 코드 ',
+            h('span', { className: 'field-hint' }, '(여러 개면 콤마)'),
+          ),
+          h('input', { 
+            className: 'field-input',
+            value: form.companyCode || '',
+            onChange: (e) => setForm({ ...form, companyCode: e.target.value }),
+            placeholder: 'DW01, DS01',
+          }),
+        ),
+        isCopy ? h('div', { className: 'form-field span-2' },
+          h('div', { className: 'field-label' }, '회사 코드 ',
+            h('span', { className: 'field-hint' }, '(여러 개면 콤마)'),
+          ),
+          h('input', { 
+            className: 'field-input',
+            value: form.companyCode || '',
+            onChange: (e) => setForm({ ...form, companyCode: e.target.value }),
+            placeholder: 'DW01, DS01',
+          }),
+        ) : null,
+        h('div', { className: 'form-field' },
+          h('div', { className: 'field-label' }, '요청자'),
+          h('input', { 
+            className: 'field-input',
+            value: form.requester || '',
+            onChange: (e) => setForm({ ...form, requester: e.target.value }),
+            placeholder: '홍길동 (현업)',
+          }),
+        ),
+        h('div', { className: 'form-field' },
+          h('div', { className: 'field-label' }, '담당자'),
+          h('input', { 
+            className: 'field-input',
+            value: form.assignee || '',
+            onChange: (e) => setForm({ ...form, assignee: e.target.value }),
+            placeholder: '이한준',
+          }),
+        ),
+      ),
+    ),
+    
+    // 사유
+    h('div', { className: 'card' },
+      h('div', { className: 'card-title' }, '✍️ 변경 사유 / 배경 ',
+        h('span', { style: { fontSize: 11, color: 'var(--text-sub)', fontWeight: 500 } }, '(필수)'),
+      ),
+      h('textarea', { 
+        className: 'field-textarea',
+        value: form.reason || '',
+        onChange: (e) => setForm({ ...form, reason: e.target.value }),
+        placeholder: '예시) 현업에서 월말 마감 시 신규 자회사 DS01 분개가 누락된다는 이슈 발생...',
+      }),
+    ),
+    
+    // 변경 내용
+    h('div', { className: 'card' },
+      h('div', { className: 'card-title' }, '📝 변경 내용 상세 ',
+        h('span', { style: { fontSize: 11, color: 'var(--text-sub)', fontWeight: 500 } }, '(필수)'),
+      ),
+      h('textarea', { 
+        className: 'field-textarea large',
+        value: form.content || '',
+        onChange: (e) => setForm({ ...form, content: e.target.value }),
+        placeholder: '예시)\n1. SELECT BUKRS 조건에 OR 절 추가\n2. CBO 테이블 ZFI001 의 회사 코드별 분기 로직 변경\n3. ALV 헤더에 회사 코드 컬럼 추가\n\n(Excel 에서 복사한 표 그대로 붙여넣어도 됩니다)',
+      }),
+    ),
+    
+    // 이미지
+    h('div', { className: 'card' },
+      h('div', { className: 'card-title' }, '🖼 이미지·캡처 ',
+        h('span', { style: { fontSize: 11, color: 'var(--text-sub)', fontWeight: 500 } }, '(선택)'),
+      ),
+      h('div', { 
+        className: 'upload-box',
+        onClick: () => fileInputRef.current?.click(),
+      },
+        h('div', { className: 'upload-icon' }, '📤'),
+        h('div', { className: 'upload-title' }, '클릭하여 이미지 업로드'),
+        h('div', { className: 'upload-hint' }, 'PNG, JPG, GIF · 최대 4MB · 여러 장 가능'),
+      ),
+      h('input', { 
+        type: 'file', ref: fileInputRef,
+        accept: 'image/*', multiple: true,
+        style: { display: 'none' },
+        onChange: handleFileUpload,
+      }),
+      (form.images || []).length > 0 ? h('div', { className: 'image-list' },
+        form.images.map(img =>
+          h('div', { key: img.id, className: 'image-thumb' },
+            h('img', { src: img.data, alt: img.name }),
+            h('button', { 
+              className: 'image-remove', 
+              onClick: () => removeImage(img.id),
+              title: '제거',
+            }, '×'),
+          )
+        )
+      ) : null,
+    ),
+    
+    // 추가 정보
+    h('div', { className: 'card' },
+      h('div', { className: 'card-title' }, '📌 추가 정보 ',
+        h('span', { style: { fontSize: 11, color: 'var(--text-sub)', fontWeight: 500 } }, '(선택)'),
+      ),
+      h('textarea', { 
+        className: 'field-textarea',
+        value: form.additionalInfo || '',
+        onChange: (e) => setForm({ ...form, additionalInfo: e.target.value }),
+        placeholder: '관련 테이블, 권한 그룹, 특이사항 등',
+      }),
+    ),
+    
+    // 생성 버튼 (하단 큰 버튼)
+    h('div', { style: { marginTop: 24, display: 'flex', justifyContent: 'flex-end', gap: 12 } },
+      h('button', { 
+        className: 'btn-primary', 
+        disabled: !canGenerate || loading,
+        onClick: onGenerate,
+        style: { fontSize: 15, padding: '12px 28px' },
+      }, 
+        loading 
+          ? h(Fragment, null, h('span', { className: 'spinner' }), ' 생성 중... (10~30초)') 
+          : '✨ 명세서 생성',
+      ),
+    ),
+    
+    !canGenerate ? h('div', { 
+      style: { textAlign: 'center', fontSize: 12, color: 'var(--text-sub)', marginTop: 8 } 
+    }, '⚠️ 변경 유형, 프로그램 제목, 프로그램 ID, 사유 또는 내용 중 하나는 필수입니다') : null,
+  );
+}
+
+
 function App() {
   const [view, setView] = useState('wizard'); // wizard | history-view
   const [step, setStep] = useState(() => lsGet(LS_KEY_DRAFT_RESULT, '') ? 4 : 1);
   const [form, setForm] = useState(() => lsGet(LS_KEY_DRAFT, {
     changeType: '',
+    title: '',
     programId: '',
     newProgramId: '',
     companyCode: '',
@@ -1928,6 +2277,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [search, setSearch] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mode, setMode] = useState(() => lsGet(LS_KEY_MODE, 'manual')); // 'wizard' | 'manual'
   
   // Auto-save draft
   useEffect(() => {
@@ -1954,7 +2304,7 @@ function App() {
       if (!confirm('현재 작성 중인 내용을 버리시겠습니까?')) return;
     }
     setForm({
-      changeType: '', programId: '', newProgramId: '', companyCode: '',
+      changeType: '', title: '', programId: '', newProgramId: '', companyCode: '',
       requester: form.requester, assignee: form.assignee,
       reason: '', content: '', additionalInfo: '', images: [],
     });
@@ -1998,9 +2348,9 @@ function App() {
   const handleSave = () => {
     const item = {
       id: currentId || uuid(),
-      title: (form.programId || '명세') + ' ' + 
-        (CHANGE_TYPES.find(t => t.id === form.changeType)?.title || ''),
+      title: form.title || (form.programId + ' ' + (CHANGE_TYPES.find(t => t.id === form.changeType)?.title || '')),
       programId: form.programId,
+      programTitle: form.title,
       changeType: form.changeType,
       form,
       result,
@@ -2147,16 +2497,44 @@ function App() {
             h('span', null, '말툴스'),
             h('span', null, '/'),
             h('span', { className: 'breadcrumb-current' }, '말스펙 NEW'),
-            (form.programId || form.changeType) ? h(Fragment, null,
+            (form.title || form.programId || form.changeType) ? h(Fragment, null,
               h('span', null, '/'),
               h('span', { style: { color: 'var(--text)', fontWeight: 600 } },
-                (form.programId || '제목 없음') + 
+                (form.title || form.programId || '제목 없음') + 
                 (form.changeType ? ' · ' + (CHANGE_TYPES.find(t => t.id === form.changeType)?.title || '') : '')
               ),
             ) : null,
           ),
         ),
         h('div', { className: 'main-header-actions' },
+          // 모드 토글 (Step 4 결과 화면 아니면 표시)
+          step !== 4 ? h('div', { 
+            style: { 
+              display: 'flex', background: 'var(--bg)', 
+              borderRadius: 6, padding: 3, gap: 2,
+            } 
+          },
+            h('button', {
+              onClick: () => { setMode('manual'); lsSet(LS_KEY_MODE, 'manual'); },
+              style: {
+                background: mode === 'manual' ? 'white' : 'transparent',
+                color: mode === 'manual' ? 'var(--primary)' : 'var(--text-sub)',
+                border: 'none', padding: '5px 12px', borderRadius: 4,
+                fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                boxShadow: mode === 'manual' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+              },
+            }, '📝 수동'),
+            h('button', {
+              onClick: () => { setMode('wizard'); lsSet(LS_KEY_MODE, 'wizard'); },
+              style: {
+                background: mode === 'wizard' ? 'white' : 'transparent',
+                color: mode === 'wizard' ? 'var(--primary)' : 'var(--text-sub)',
+                border: 'none', padding: '5px 12px', borderRadius: 4,
+                fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                boxShadow: mode === 'wizard' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+              },
+            }, '🪄 위저드'),
+          ) : null,
           !apiKey ? h('button', { 
             className: 'btn-ghost', 
             onClick: () => setShowSettings(true),
@@ -2168,11 +2546,21 @@ function App() {
       
       h('div', { className: 'content' },
         view === 'wizard' ? h(Fragment, null,
-          step <= 4 ? h(Stepper, { step }) : null,
-          step === 1 ? h(Step1, { form, setForm, onNext }) : null,
-          step === 2 ? h(Step2, { form, setForm, onNext, onBack }) : null,
-          step === 3 ? h(Step3, { form, setForm, onGenerate: handleGenerate, onBack, loading }) : null,
-          step === 4 ? h(Step4, { result, setResult, form, onBack, onSave: handleSave, onRegenerate: handleGenerate }) : null,
+          // 결과 화면 (Step 4) 은 모드 무관 동일
+          step === 4 ? h(Step4, { result, setResult, form, onBack, onSave: handleSave, onRegenerate: handleGenerate })
+          // 수동 모드: 한 화면에 모든 필드
+          : mode === 'manual' ? h(ManualForm, { 
+              form, setForm, 
+              onGenerate: handleGenerate, 
+              loading,
+            })
+          // 위저드 모드: 단계별
+          : h(Fragment, null,
+            step <= 3 ? h(Stepper, { step }) : null,
+            step === 1 ? h(Step1, { form, setForm, onNext }) : null,
+            step === 2 ? h(Step2, { form, setForm, onNext, onBack }) : null,
+            step === 3 ? h(Step3, { form, setForm, onGenerate: handleGenerate, onBack, loading }) : null,
+          ),
         ) : null,
       ),
     ),
