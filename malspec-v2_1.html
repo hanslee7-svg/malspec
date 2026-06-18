@@ -2172,7 +2172,7 @@ function App() {
           step === 1 ? h(Step1, { form, setForm, onNext }) : null,
           step === 2 ? h(Step2, { form, setForm, onNext, onBack }) : null,
           step === 3 ? h(Step3, { form, setForm, onGenerate: handleGenerate, onBack, loading }) : null,
-          step === 4 ? h(Step4, { result, setResult, form, onBack, onSave, onRegenerate: handleGenerate }) : null,
+          step === 4 ? h(Step4, { result, setResult, form, onBack, onSave: handleSave, onRegenerate: handleGenerate }) : null,
         ) : null,
       ),
     ),
