@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MAL4SAP — SAP 일일 점검 데모 | 말툴스</title>
+<meta name="description" content="MAL4SAP — 매일 아침 SAP를 자동 점검하는 서비스. FI·SD·MM·CO 일일점검 + 시스템 진단 데모 (모의 데이터)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2329394A'/%3E%3Crect y='0' width='32' height='4' fill='%23B3421F'/%3E%3Ctext x='16' y='23' font-family='Arial' font-size='14' font-weight='bold' fill='white' text-anchor='middle'%3EM4%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  --sapblue:#0a6ed1; --sapdark:#354a5f; --sapdarker:#29394a;
+  --ink:#16211c; --paper:#f7f5ef; --card:#ffffff;
+  --rule:#d9d4c7; --mut:#6b7268;
+  --warn:#b3421f; --warn-bg:#fbeee8;
+  --info:#8a6d1f; --info-bg:#faf3df;
+  --ok:#2e6b4f;  --ok-bg:#eaf2ec;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;
+  font-size:14px;line-height:1.5;color:var(--ink);background:var(--paper)}
+
+/* ── 로그인 (SAP 로그온 스타일) ─────────────────────── */
+#login{position:fixed;inset:0;display:flex;align-items:center;
+  justify-content:center;background:linear-gradient(160deg,var(--sapdark),var(--sapdarker));z-index:10}
+.logon{width:380px;background:#fff;border-radius:4px;overflow:hidden;
+  box-shadow:0 18px 50px rgba(0,0,0,.4)}
+.logon .top{background:var(--sapdark);color:#fff;padding:18px 24px}
+.logon .top .sys{font-size:11px;letter-spacing:.18em;opacity:.75;text-transform:uppercase}
+.logon .top h1{font-size:19px;font-weight:700;margin-top:2px}
+.logon .body{padding:22px 24px 26px}
+.fld{margin-bottom:13px}
+.fld label{display:block;font-size:12px;color:#556;margin-bottom:4px}
+.fld input,.fld select{width:100%;font:inherit;padding:8px 10px;
+  border:1px solid #bcc3cc;border-radius:3px;background:#fbfcfd}
+.fld input:focus,.fld select:focus{outline:2px solid var(--sapblue);border-color:var(--sapblue)}
+.logon .btn-logon{width:100%;margin-top:6px;font:inherit;font-weight:700;
+  background:var(--sapblue);color:#fff;border:none;border-radius:3px;
+  padding:10px;cursor:pointer;font-size:14px}
+.logon .btn-logon:hover{background:#085caf}
+.logon .note{margin-top:14px;font-size:11.5px;color:#889;line-height:1.5}
+.logon .err{display:none;color:var(--warn);font-size:12px;margin-top:8px}
+
+/* ── 앱 셸 ──────────────────────────────────────────── */
+#app{display:none}
+.topbar{background:var(--sapdark);color:#fff;padding:0 20px;
+  display:flex;align-items:center;justify-content:space-between;height:48px}
+.topbar .brand{font-size:13px;font-weight:700;letter-spacing:.1em}
+.topbar .brand span{opacity:.6;font-weight:400;margin-left:10px;letter-spacing:0}
+.topbar .right{display:flex;align-items:center;gap:14px;font-size:12px}
+.topbar .conn{opacity:.8}
+.btn-run{font:inherit;font-size:12px;font-weight:700;color:#fff;
+  background:var(--sapblue);border:none;border-radius:3px;
+  padding:6px 14px;cursor:pointer}
+.btn-run:hover{background:#085caf}
+.btn-out{font:inherit;font-size:12px;color:#fff;background:none;
+  border:1px solid rgba(255,255,255,.4);border-radius:3px;
+  padding:5px 12px;cursor:pointer}
+.tabs{background:#fff;border-bottom:1px solid var(--rule);
+  display:flex;padding:0 20px;gap:2px;overflow-x:auto}
+.tab{font:inherit;font-size:13.5px;font-weight:600;color:var(--mut);
+  background:none;border:none;border-bottom:3px solid transparent;
+  padding:12px 18px 10px;cursor:pointer;white-space:nowrap;
+  display:flex;align-items:center;gap:7px}
+.tab:hover{color:var(--ink)}
+.tab.active{color:var(--sapblue);border-bottom-color:var(--sapblue)}
+.tab .badge{font-size:10.5px;font-weight:800;color:#fff;background:var(--warn);
+  border-radius:9px;padding:1px 7px;min-width:18px;text-align:center}
+.tab .badge.zero{background:var(--ok)}
+.tab.soon{color:#b8bcb4;cursor:default}
+.tab.soon:hover{color:#b8bcb4}
+
+/* ── 리포트 영역 (기존 스타일 계승) ─────────────────── */
+.page{max-width:920px;margin:0 auto;padding:26px 16px 48px}
+.rhead{display:flex;justify-content:space-between;align-items:flex-end;
+  border-bottom:3px solid var(--ink);padding-bottom:10px;flex-wrap:wrap;gap:6px}
+.rhead h2{font-size:21px;font-weight:800}
+.rhead .meta{color:var(--mut);font-size:12.5px}
+.summary{display:flex;border-bottom:1px solid var(--rule);margin-bottom:18px}
+.summary div{flex:1;padding:10px 4px;text-align:center;border-right:1px solid var(--rule)}
+.summary div:last-child{border-right:none}
+.summary b{display:block;font-size:24px;font-variant-numeric:tabular-nums;font-weight:800}
+.summary span{font-size:11px;color:var(--mut);letter-spacing:.08em}
+.n-warn b{color:var(--warn)} .n-info b{color:var(--info)} .n-ok b{color:var(--ok)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.card{background:var(--card);border:1px solid var(--rule);border-top:4px solid;
+  border-radius:2px;padding:12px 14px;display:flex;flex-direction:column}
+.card.WARN{border-top-color:var(--warn)}
+.card.INFO{border-top-color:var(--info)}
+.card.OK{border-top-color:var(--ok)}
+.card .row1{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.card h3{font-size:13.5px;font-weight:700}
+.tag{font-size:10.5px;font-weight:700;padding:1px 8px;border-radius:2px;
+  letter-spacing:.1em;white-space:nowrap}
+.WARN .tag{color:var(--warn);background:var(--warn-bg)}
+.INFO .tag{color:var(--info);background:var(--info-bg)}
+.OK .tag{color:var(--ok);background:var(--ok-bg)}
+.card .head{font-size:14.5px;margin-top:4px;font-weight:600;
+  font-variant-numeric:tabular-nums}
+.card ul{margin-top:6px;list-style:none;flex:1}
+.card li{padding:2px 0;font-size:12.5px;color:#3c443e;
+  font-variant-numeric:tabular-nums}
+.card li::before{content:"—";color:var(--mut);margin-right:6px}
+.btn{margin-top:10px;align-self:flex-start;font:inherit;font-size:12px;
+  font-weight:700;color:var(--ink);background:none;
+  border:1px solid var(--ink);border-radius:2px;padding:4px 14px;cursor:pointer}
+.btn:hover{background:var(--ink);color:var(--card)}
+.drill{display:none;margin-top:10px;border-top:1px dashed var(--rule);
+  padding-top:8px;overflow-x:auto}
+.drill.open{display:block}
+.drill table{width:100%;border-collapse:collapse;font-size:12px;
+  font-variant-numeric:tabular-nums}
+.drill th{text-align:left;color:var(--mut);font-weight:600;
+  border-bottom:1px solid var(--rule);padding:3px 8px 3px 0;white-space:nowrap}
+.drill td{border-bottom:1px solid #eeeae0;padding:3px 8px 3px 0;white-space:nowrap}
+.drill tr:last-child td{border-bottom:none}
+.pfoot{margin-top:26px;padding-top:10px;border-top:1px solid var(--rule);
+  color:var(--mut);font-size:11.5px;display:flex;justify-content:space-between;gap:8px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:var(--sapdark);color:#fff;padding:9px 20px;border-radius:4px;
+  font-size:12.5px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:20}
+.toast.show{opacity:1}
+@media(max-width:640px){.grid{grid-template-columns:1fr}}
+</style></head>
+<body>
+
+<div id="login">
+  <div class="logon">
+    <div class="top">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="sys">NOAHLABS · MAL4SAP</div>
+        <a href="https://sapfiori.co.kr" style="font-size:11px;color:#8FA3B5;text-decoration:none">← 말툴스</a>
+      </div>
+      <h1>시스템 로그온</h1>
+      <div style="font-size:11.5px;opacity:.65;margin-top:4px">Monitoring, Auditing &amp; Learning for SAP</div>
+    </div>
+    <div class="body">
+      <div class="fld"><label>접속 방식</label>
+        <select id="f-mode" onchange="switchMode()">
+          <option value="demo">데모 — 모의 데이터</option>
+          <option value="rfc">온프레미스 / Private Cloud — RFC</option>
+          <option value="odata">S/4HANA Cloud Public — OData API</option>
+        </select></div>
+
+      <div id="grp-demo">
+        <div class="fld"><label>시스템</label>
+          <select id="f-sys"><option>PRD — 운영 (AP1)</option>
+          <option>QAS — 품질 (AQ1)</option><option>DEV — 개발 (AD1)</option></select></div>
+      </div>
+
+      <div id="grp-rfc" style="display:none">
+        <div class="fld"><label>애플리케이션 서버 (ashost)</label>
+          <input id="f-ashost" placeholder="sap-prd.company.co.kr"></div>
+        <div class="fld"><label>시스템 번호</label>
+          <input id="f-sysnr" value="00" maxlength="2" style="width:90px"></div>
+      </div>
+
+      <div id="grp-odata" style="display:none">
+        <div class="fld"><label>API URL</label>
+          <input id="f-apiurl" placeholder="https://myXXXXXX-api.s4hana.cloud.sap"></div>
+      </div>
+
+      <div class="fld" id="fld-client"><label>클라이언트</label>
+        <input id="f-client" value="100" maxlength="3"></div>
+      <div class="fld"><label id="lbl-user">사용자</label>
+        <input id="f-user" placeholder="MAL4SAP_SVC" autocomplete="off"></div>
+      <div class="fld"><label>암호</label>
+        <input id="f-pw" type="password" onkeydown="if(event.key==='Enter')doLogon()"></div>
+      <div class="fld"><label>언어</label>
+        <select><option>KO — 한국어</option><option>EN — English</option></select></div>
+      <button class="btn-logon" onclick="doLogon()">로그온</button>
+      <div class="err" id="logon-err">필수 항목을 입력하세요.</div>
+      <div class="note" id="logon-note">체험 데모: 아무 값이나 입력하고 로그온하세요. 모든 데이터는 모의 데이터입니다.</div>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="topbar">
+    <div class="brand">MAL4SAP<span>Monitoring, Auditing &amp; Learning for SAP</span></div><span style="background:#B3421F;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:2px;margin-left:10px">DEMO</span>
+    <a href="https://sapfiori.co.kr" target="_top" style="font-size:11.5px;color:#AFC0CF;text-decoration:none;margin-left:12px">말툴스 ↗</a>
+    <div class="right">
+      <span class="conn" id="conn-info"></span>
+      <button class="btn-run" onclick="runNow()">지금 점검 실행</button>
+      <button class="btn-out" onclick="logoff()">로그오프</button>
+    </div>
+  </div>
+  <div class="tabs" id="tabs"></div>
+  <div class="page" id="page"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+const DATA = {"generated_at": "2026-07-03 05:54", "modules": {"fi": {"label": "FI 일일점검", "scope": "회사코드 1000", "target": "2026-07-02", "report_date": "2026-07-03", "results": [{"id": "DOC_VOLUME", "title": "전일 전표 처리량", "severity": "OK", "headline": "1,208건 처리 (평소 1,238건, 98%)", "detail": [], "metric": 1208}, {"id": "REVERSAL", "title": "역분개 전표", "severity": "WARN", "headline": "7건 발생 (일평균 1.5건)", "detail": ["사용자 KIM03에 5건 집중 — 원인 확인 권장"], "metric": 7, "drill": {"cols": ["전표번호", "사용자", "원전표", "전기시각", "금액"], "rows": [["0100054110", "KIM03", "0126630459", "14:24", "6,284만"], ["0100054114", "KIM03", "0174032823", "15:33", "5,434만"], ["0100054115", "PARK04", "0174040359", "08:17", "4,666만"], ["0100054112", "KIM03", "0167035555", "13:07", "3,711만"], ["0100054113", "KIM03", "0141700712", "09:01", "3,441만"], ["0100054111", "KIM03", "0152176306", "18:55", "2,861만"], ["0100054116", "LEE02", "0195214424", "16:25", "2,315만"]]}}, {"id": "LARGE_AMT", "title": "고액 전표 (5.0억 이상)", "severity": "WARN", "headline": "2건", "detail": ["전표 0100054118 / SA / CHOI05 / 12.5억", "전표 0100054117 / SA / CHOI05 / 7.2억"], "metric": 2, "drill": {"cols": ["전표번호", "유형", "사용자", "계정", "금액"], "rows": [["0100054118", "SA", "CHOI05", "21010100", "12.5억"], ["0100054117", "SA", "CHOI05", "13050100", "7.2억"]]}}, {"id": "OFFHOUR", "title": "심야 시간대 수기 전기", "severity": "WARN", "headline": "3건", "detail": ["전표 0100054119 / JUNG06 / 23:14 전기", "전표 0100054120 / JUNG06 / 23:42 전기", "전표 0100054121 / JUNG06 / 23:26 전기"], "metric": 3, "drill": {"cols": ["전표번호", "유형", "사용자", "전기시각", "금액"], "rows": [["0100054119", "SA", "JUNG06", "23:14", "102만"], ["0100054121", "SA", "JUNG06", "23:26", "981만"], ["0100054120", "SA", "JUNG06", "23:42", "1,363만"]]}}, {"id": "AR_OVERDUE", "title": "채권 30일 초과 연체 잔액", "severity": "WARN", "headline": "23.2억 (평소 19.8억)", "detail": ["평소 대비 +3.4억 — 연체 상위 거래처 점검 권장"], "metric": 2317079412.9371176, "drill": {"cols": ["거래처", "건수", "연체잔액", "최장연체(일)"], "rows": [["C1002", 3, "3.9억", 88], ["C1011", 3, "2.5억", 76], ["C1010", 2, "2.0억", 87], ["C1014", 2, "1.8억", 87], ["C1007", 2, "1.6억", 89], ["C1008", 1, "1.4억", 50], ["C1009", 3, "1.3억", 65], ["C1000", 2, "1.3억", 36], ["C1015", 2, "1.2억", 53], ["C1005", 2, "1.2억", 53]]}}, {"id": "NEW_PARTNER", "title": "신규 거래처 첫 거래", "severity": "INFO", "headline": "1건", "detail": ["거래처 C9999 첫 전표 0100054122 / 3.4억"], "metric": 1, "drill": {"cols": ["거래처", "전표번호", "유형", "금액"], "rows": [["C9999", "0100054122", "DR", "3.4억"]]}}, {"id": "CARD_WATCH", "title": "법인카드 이상 사용", "severity": "WARN", "headline": "4건 (심야·취급주의 업종·100만원 이상)", "detail": ["이서연 / 신라스테이 / 185만 (고액)", "정우진 / 레이크힐스CC / 124만 (업종:골프장, 고액)", "박지훈 / 루비클럽 / 68만 (업종:주점, 심야 23:45)", "박지훈 / 월광 / 31만 (업종:주점, 심야 01:12)"], "metric": 4, "drill": {"cols": ["사용자", "카드끝자리", "가맹점", "업종", "금액", "시각"], "rows": [["이서연", "0027", "신라스테이", "7011", "185만", "16:41"], ["정우진", "0088", "레이크힐스CC", "골프장", "124만", "08:30"], ["박지훈", "0042", "루비클럽", "주점", "68만", "23:45"], ["박지훈", "0042", "월광", "주점", "31만", "01:12"]]}}, {"id": "CARD_UNSETTLED", "title": "법인카드 장기 미정산 (7일 초과)", "severity": "WARN", "headline": "15건 / 295만", "detail": ["최은영 7건 / 128만 / 최초사용 2026-06-04", "이서연 2건 / 59만 / 최초사용 2026-06-06", "정우진 2건 / 49만 / 최초사용 2026-06-16", "김민수 2건 / 42만 / 최초사용 2026-06-03", "박지훈 2건 / 17만 / 최초사용 2026-06-17"], "metric": 15, "drill": {"cols": ["사용자", "사용일", "가맹점", "금액", "경과일"], "rows": [["김민수", "2026-06-03", "한우명가", "23만", "30일"], ["최은영", "2026-06-04", "이마트 성남", "18만", "29일"], ["이서연", "2026-06-06", "타다", "23만", "27일"], ["이서연", "2026-06-09", "SK에너지 분당", "36만", "24일"], ["최은영", "2026-06-11", "GS칼텍스 판교", "43만", "22일"], ["정우진", "2026-06-16", "SK에너지 분당", "33만", "17일"], ["박지훈", "2026-06-17", "타다", "3만", "16일"], ["최은영", "2026-06-19", "한우명가", "19만", "14일"], ["최은영", "2026-06-21", "라마다", "15만", "12일"], ["박지훈", "2026-06-22", "신라스테이", "14만", "11일"], ["최은영", "2026-06-22", "한우명가", "22만", "11일"], ["김민수", "2026-06-23", "이마트 성남", "20만", "10일"], ["정우진", "2026-06-24", "신라스테이", "16만", "9일"], ["최은영", "2026-06-25", "이마트 성남", "4만", "8일"], ["최은영", "2026-06-25", "GS칼텍스 판교", "7만", "8일"]]}}, {"id": "CLOSING", "title": "마감·신고 일정", "severity": "INFO", "headline": "1건 임박", "detail": ["원천세 신고·납부: 07/10 (D-7)"], "metric": 1}]}, "sd": {"label": "SD 일일점검", "scope": "판매조직 1000", "target": "2026-07-02", "report_date": "2026-07-03", "results": [{"id": "SO_VOLUME", "title": "전일 수주 실적", "severity": "OK", "headline": "93건 / 34.8억 (평소 79건 / 24.6억)", "detail": [], "metric": 93}, {"id": "CREDIT_BLOCK", "title": "여신 블록 오더", "severity": "WARN", "headline": "5건 / 4.1억 (일평균 1.8건)", "detail": ["고객 C1003에 3건 집중 — 여신한도 점검 권장"], "metric": 5, "drill": {"cols": ["오더번호", "고객", "금액"], "rows": [["0300003531", "C1056", "1.2억"], ["0300003528", "C1003", "1.1억"], ["0300003530", "C1003", "7,072만"], ["0300003529", "C1003", "6,677만"], ["0300003532", "C1006", "4,725만"]]}}, {"id": "DLV_OVERDUE", "title": "납품 지연 오더", "severity": "WARN", "headline": "9건 / 4.0억", "detail": ["최장 지연 24일 (오더 0300003545)"], "metric": 9, "drill": {"cols": ["오더번호", "고객", "납품요청일", "금액", "지연일"], "rows": [["0300003545", "C1034", "2026-06-09", "1,159만", "24일"], ["0300003542", "C1038", "2026-06-10", "3,189만", "23일"], ["0300003543", "C1062", "2026-06-13", "806만", "20일"], ["0300003548", "C1038", "2026-06-14", "4,132만", "19일"], ["0300003547", "C1066", "2026-06-17", "3,634만", "16일"], ["0300003544", "C1059", "2026-06-18", "7,522만", "15일"], ["0300003546", "C1074", "2026-06-20", "6,815만", "13일"], ["0300003277", "C1079", "2026-07-02", "5,983만", "1일"], ["0300003255", "C1005", "2026-07-02", "6,620만", "1일"]]}}, {"id": "RETURNS", "title": "반품 오더", "severity": "WARN", "headline": "6건 / 2,612만 (일평균 1.0건)", "detail": ["반품 사유·자재 집중 여부 확인 권장"], "metric": 6, "drill": {"cols": ["반품오더", "고객", "대표자재", "금액"], "rows": [["0300003537", "C1056", "M5011", "707만"], ["0300003538", "C1004", "M5011", "509만"], ["0300003535", "C1042", "M5028", "472만"], ["0300003533", "C1048", "M5014", "456만"], ["0300003536", "C1069", "M5028", "292만"], ["0300003534", "C1011", "M5021", "176만"]]}}, {"id": "ZERO_PRICE", "title": "단가 0원 오더", "severity": "WARN", "headline": "2건 — 가격결정 누락 의심", "detail": [], "metric": 2, "drill": {"cols": ["오더번호", "고객", "품목", "자재", "수량"], "rows": [["0300003539", "C1047", 10, "M5008", "94"], ["0300003540", "C1017", 10, "M5028", "55"]]}}, {"id": "BILLING_GAP", "title": "빌링 미생성 (3일 초과)", "severity": "WARN", "headline": "18건 / 4.9억", "detail": ["매출 인식 지연 위험 — 합계 4.9억"], "metric": 18, "drill": {"cols": ["납품번호", "오더번호", "고객", "출고일", "금액", "경과일"], "rows": [["0800000544", "0300000552", "C1063", "2026-05-16", "379만", "48일"], ["0800001186", "0300001204", "C1072", "2026-05-24", "2,131만", "40일"], ["0800001426", "0300001447", "C1000", "2026-06-01", "1,309만", "32일"], ["0800002405", "0300002444", "C1070", "2026-06-17", "3,458만", "16일"], ["0800002463", "0300002503", "C1055", "2026-06-18", "6,979만", "15일"], ["0800002637", "0300002677", "C1021", "2026-06-23", "3,596만", "10일"], ["0800002702", "0300002743", "C1034", "2026-06-24", "4,730만", "9일"], ["0800002770", "0300002813", "C1075", "2026-06-24", "611만", "9일"], ["0800002776", "0300002819", "C1012", "2026-06-25", "3,017만", "8일"], ["0800002948", "0300002995", "C1065", "2026-06-27", "5,739만", "6일"], ["0800002971", "0300003019", "C1058", "2026-06-27", "576만", "6일"], ["0800003162", "0300003213", "C1053", "2026-06-27", "1,728만", "6일"], ["0800002885", "0300002929", "C1063", "2026-06-28", "241만", "5일"], ["0800002996", "0300003044", "C1006", "2026-06-28", "2,095만", "5일"], ["0800003261", "0300003550", "C1023", "2026-06-28", "1,141만", "5일"]]}}, {"id": "NEW_CUST", "title": "신규 고객 첫 주문", "severity": "INFO", "headline": "1건", "detail": ["고객 C9901 첫 오더 0300003541 / 4.7억"], "metric": 1, "drill": {"cols": ["오더번호", "고객", "금액"], "rows": [["0300003541", "C9901", "4.7억"]]}}, {"id": "PIPELINE", "title": "파이프라인 잔고", "severity": "INFO", "headline": "미납품 219건/212.2억 · 미빌링 102건/28.6억", "detail": [], "metric": 219}]}, "mm": {"label": "MM 일일점검", "scope": "구매조직 1000", "target": "2026-07-02", "report_date": "2026-07-03", "results": [{"id": "PO_VOLUME", "title": "전일 발주 실적", "severity": "OK", "headline": "35건 / 22.4억 (평소 25건)", "detail": [], "metric": 35}, {"id": "GR_OVERDUE", "title": "납기 초과 미입고", "severity": "WARN", "headline": "8건 / 2.7억", "detail": ["최장 지연 17일 (PO 4500001078, 업체 V2036)"], "metric": 8, "drill": {"cols": ["PO번호", "공급업체", "자재", "납기", "금액", "지연일"], "rows": [["4500001078", "V2036", "M5012", "2026-06-16", "889만", "17일"], ["4500001074", "V2015", "M5006", "2026-06-21", "1,293만", "12일"], ["4500001077", "V2010", "M5020", "2026-06-21", "1,933만", "12일"], ["4500001079", "V2012", "M5016", "2026-06-22", "8,293만", "11일"], ["4500001072", "V2016", "M5005", "2026-06-23", "4,859만", "10일"], ["4500001073", "V2018", "M5023", "2026-06-25", "436만", "8일"], ["4500001075", "V2034", "M5018", "2026-06-27", "1,614만", "6일"], ["4500001076", "V2010", "M5013", "2026-06-28", "8,140만", "5일"]]}}, {"id": "GRIR", "title": "GR/IR 불일치 (21일 초과)", "severity": "WARN", "headline": "27건 / 5.8억", "detail": ["월마감 시 GR/IR 정리 대상 — 업체 송장 독촉 권장"], "metric": 27, "drill": {"cols": ["PO번호", "공급업체", "입고수량", "송장수량", "입고금액", "최종입고일"], "rows": [["4500000371", "V2036", "471", "0", "7,545만", "2026-06-02"], ["4500000143", "V2026", "263", "0", "7,489만", "2026-05-26"], ["4500000165", "V2023", "398", "0", "6,353만", "2026-05-24"], ["4500001084", "V2034", "277", "0", "4,939만", "2026-06-08"], ["4500000430", "V2034", "252", "0", "4,454만", "2026-06-10"], ["4500000354", "V2004", "432", "0", "3,378만", "2026-06-06"], ["4500000388", "V2035", "199", "0", "3,183만", "2026-06-02"], ["4500001081", "V2017", "315", "0", "3,060만", "2026-06-03"], ["4500000460", "V2018", "231", "0", "2,322만", "2026-06-05"], ["4500000374", "V2035", "79", "0", "2,284만", "2026-06-08"], ["4500000007", "V2029", "259", "0", "2,009만", "2026-05-15"], ["4500000302", "V2004", "115", "0", "1,922만", "2026-06-05"], ["4500000236", "V2022", "466", "0", "1,716만", "2026-06-01"], ["4500000333", "V2023", "496", "0", "1,069만", "2026-06-11"], ["4500000023", "V2001", "476", "0", "1,039만", "2026-05-19"], ["4500000270", "V2035", "42", "0", "1,009만", "2026-05-24"], ["4500000425", "V2010", "417", "0", "968만", "2026-06-09"], ["4500000200", "V2038", "36", "0", "592만", "2026-05-25"], ["4500000442", "V2004", "210", "0", "586만", "2026-06-06"], ["4500000104", "V2016", "23", "0", "570만", "2026-05-16"], ["4500000228", "V2019", "353", "0", "485만", "2026-05-26"], ["4500000238", "V2013", "48", "0", "317만", "2026-06-05"], ["4500000084", "V2017", "163", "0", "230만", "2026-05-24"], ["4500000265", "V2021", "81", "0", "188만", "2026-05-30"], ["4500000024", "V2004", "44", "0", "100만", "2026-05-20"], ["4500000481", "V2019", "26", "0", "96만", "2026-06-07"], ["4500001083", "V2021", "36", "0", "77만", "2026-06-09"]]}}, {"id": "LARGE_PO", "title": "고액 발주 (2.0억 이상)", "severity": "WARN", "headline": "2건", "detail": ["PO 4500001086 / V2010 / 5.5억", "PO 4500001085 / V2035 / 3.0억"], "metric": 2, "drill": {"cols": ["PO번호", "공급업체", "자재", "수량", "단가", "금액"], "rows": [["4500001086", "V2010", "M5001", "3090", "18만", "5.5억"], ["4500001085", "V2035", "M5002", "1084", "28만", "3.0억"]]}}, {"id": "PRICE_SPIKE", "title": "자재 단가 급등 발주", "severity": "WARN", "headline": "2건 — 단가 검증 권장", "detail": ["M5010 / V9905 / 8만 (평균 대비 227%)", "M5003 / V2027 / 21만 (평균 대비 143%)"], "metric": 2, "drill": {"cols": ["PO번호", "자재", "공급업체", "발주단가", "평균단가", "배율"], "rows": [["4500001088", "M5010", "V9905", "8만", "4만", "227%"], ["4500001087", "M5003", "V2027", "21만", "15만", "143%"]]}}, {"id": "NEW_VENDOR", "title": "신규 공급업체 첫 발주", "severity": "INFO", "headline": "1건", "detail": ["업체 V9905 첫 PO 4500001088"], "metric": 1, "drill": {"cols": ["PO번호", "공급업체", "자재", "금액"], "rows": [["4500001088", "V9905", "M5010", "1,700만"]]}}]}, "co": {"label": "CO 일일점검", "scope": "관리회계영역 1000", "target": "2026-07-02", "report_date": "2026-07-03", "results": [{"id": "CO_VOLUME", "title": "전일 CO 전기량", "severity": "OK", "headline": "96건 / 5.0억 (평소 84건)", "detail": [], "metric": 96}, {"id": "CC_SPIKE", "title": "코스트센터 비용 급증", "severity": "WARN", "headline": "2개 센터", "detail": ["CC1012 코스트센터13 / 3.8억 (평소 대비 345.4배)", "CC1007 코스트센터08 / 1,094만 (평소 대비 6.8배)"], "metric": 2, "drill": {"cols": ["코스트센터", "명칭", "책임자", "건수", "전일비용", "일평균"], "rows": [["CC1012", "코스트센터13", "CHOI05", 3, "3.8억", "110만"], ["CC1007", "코스트센터08", "PARK04", 10, "1,094만", "162만"]]}}, {"id": "PLAN_BURN", "title": "계획 소진율 조기 초과 (진도 50% 기준)", "severity": "WARN", "headline": "2개 센터 — 예산 관리 필요", "detail": ["CC1012 코스트센터13 — 소진 167% (연간계획 3.4억)", "CC1003 코스트센터04 — 소진 93% (연간계획 4.4억)"], "metric": 2, "drill": {"cols": ["코스트센터", "명칭", "누적실적", "연간계획", "소진율"], "rows": [["CC1012", "코스트센터13", "5.7억", "3.4억", "167%"], ["CC1003", "코스트센터04", "4.1억", "4.4억", "93%"]]}}, {"id": "TECO_POST", "title": "종결 오더 실적 전기", "severity": "WARN", "headline": "2건 — 상태·결산 정합성 확인", "detail": ["IO700005 내부오더 0005 / LEE02 / 804만", "IO700000 내부오더 0000 / LEE02 / 235만"], "metric": 2, "drill": {"cols": ["전표", "오더", "오더명", "사용자", "금액"], "rows": [["200003749", "IO700005", "내부오더 0005", "LEE02", "804만"], ["200003748", "IO700000", "내부오더 0000", "LEE02", "235만"]]}}, {"id": "LARGE_CO", "title": "고액 단건 CO 전기 (2.0억+)", "severity": "WARN", "headline": "1건", "detail": ["전표 200003750 / CC1012 / 원가요소 543100 / CHOI05 / 3.8억"], "metric": 1, "drill": {"cols": ["전표", "코스트센터", "원가요소", "사용자", "금액"], "rows": [["200003750", "CC1012", "543100", "CHOI05", "3.8억"]]}}, {"id": "ML_LEDGER", "title": "ML 수불 정합성 (FCML_REP_V)", "severity": "WARN", "headline": "4개 자재 이상 — 결산 전 정리 필요", "detail": ["M5007 — 수불 금액 단절 1,103만", "M5014 — 수불 금액 단절 315만", "M5018 — 음수 재고 -35EA"], "metric": 4, "drill": {"cols": ["자재", "기초", "입고", "출고", "기말", "금액단절"], "rows": [["M5007", "1556", "728", "560", "1724", "1,103만"], ["M5014", "1913", "372", "121", "2164", "315만"], ["M5018", "1917", "643", "324", "-35", "3.1억"]]}}, {"id": "BUDGET_VA", "title": "예산 계획대비 실적 초과 (당월)", "severity": "WARN", "headline": "1개 센터 계획 110%+ 집행", "detail": ["CC1003 코스트센터04 — 실적 4,715만 / 계획 3,684만 (128%)"], "metric": 1, "drill": {"cols": ["코스트센터", "명칭", "책임자", "당월실적", "월계획", "집행률"], "rows": [["CC1003", "코스트센터04", "LEE02", "4,715만", "3,684만", "128%"]]}}, {"id": "ML_PROFIT", "title": "자재 손익 마진 이상 (FCMLFLEXT)", "severity": "WARN", "headline": "2개 제품군 — 원가·가격 점검 필요", "detail": ["PH400 — 마진율 -6.0% (마이너스, 매출 6.7억)", "PH600 — 마진율 23.2% → 4.0% 급락"], "metric": 2, "drill": {"cols": ["제품군", "자재", "매출", "매출원가", "마진율"], "rows": [["PH400", "M5013", "8,018만", "8,499만", "-6.0%"], ["PH400", "M5018", "8,372만", "8,875만", "-6.0%"], ["PH400", "M5016", "1.6억", "1.6억", "-6.0%"], ["PH400", "M5022", "3.5억", "3.7억", "-6.0%"], ["PH600", "M5010", "2.4억", "2.3억", "4.0%"], ["PH600", "M5016", "2.0억", "2.0억", "4.0%"], ["PH600", "M5008", "2.7억", "2.5억", "4.0%"], ["PH600", "M5015", "1.5억", "1.5억", "4.0%"]]}}]}, "diag": {"label": "시스템 진단", "scope": "설정·마스터·권한·CBO", "target": "2026-07-03", "report_date": "2026-07-03", "results": [{"id": "DG_SCORE", "title": "종합 진단 점수", "severity": "INFO", "headline": "33점 — 등급 F (위험)", "detail": ["주의 8건 (항목당 -8점) · 설정/마스터/권한/CBO 4개 영역 9항목", "권장: 주의 항목 조치 후 분기 재진단"], "metric": 33}, {"id": "DG_OB52", "title": "[설정] 전기기간 오픈 범위", "severity": "WARN", "headline": "1건 과다 오픈 — 소급 전기 위험", "detail": ["회사 1000 / 계정유형 '+' — 202602~202606 (5개월 오픈)"], "metric": 1}, {"id": "DG_NRIV", "title": "[설정] 전표 번호범위 소진", "severity": "WARN", "headline": "1개 범위 85%+ 소진", "detail": ["RF_BELEG 범위 01 (2026) — 92% 소진"], "metric": 1, "drill": [["객체", "범위", "연도", "소진율"], [["RF_BELEG", "01", "2026", "92%"], ["RV_BELEG", "01", "2026", "55%"], ["RF_BELEG", "02", "2026", "41%"], ["EINKBELEG", "45", "-", "37%"]]]}, {"id": "DG_TCURR", "title": "[설정] 환율 갱신 상태", "severity": "WARN", "headline": "1개 통화쌍 30일+ 미갱신", "detail": ["EUR/KRW — 최종 갱신 2026-05-17 (47일 경과)"], "metric": 1}, {"id": "DG_DUPBP", "title": "[마스터] 사업자번호 중복 거래처", "severity": "WARN", "headline": "2쌍 — 이중 지급 위험", "detail": ["사업자번호 315-61-14375 — V2018 공급사18 / V2032 공급사32", "사업자번호 701-41-45317 — V2021 공급사21 / V2034 공급사34"], "metric": 2}, {"id": "DG_NOBANK", "title": "[마스터] 계좌 미등록 지급 구매처", "severity": "WARN", "headline": "3곳 — 지급 실행 시 오류·수기처리 유발", "detail": ["V2005 공급사05", "V2017 공급사17", "V2033 공급사33"], "metric": 3}, {"id": "DG_SAPALL", "title": "[권한] SAP_ALL 보유 사용자", "severity": "WARN", "headline": "2명 — 감사 지적 1순위", "detail": ["USER07 (생산)", "USER23 (구매)"], "metric": 2}, {"id": "DG_DORMANT", "title": "[권한] 180일+ 미로그인 활성 계정", "severity": "WARN", "headline": "4명 — 퇴사자 ID 여부 확인", "detail": ["USER51 (IT) — 최종 로그인 2025-06-17 (381일 전)", "USER29 (구매) — 최종 로그인 2025-07-02 (366일 전)", "USER11 (IT) — 최종 로그인 2025-07-19 (349일 전)", "USER40 (IT) — 최종 로그인 2025-11-10 (235일 전)"], "metric": 4}, {"id": "DG_ZUNUSED", "title": "[CBO] 1년+ 미실행 Z프로그램", "severity": "INFO", "headline": "19개 / 전체 50개 (38%) — S/4 전환 시 정리 대상", "detail": ["ZFI_RPT_007 — 최종 실행 2022-08-10", "ZSD_UTIL_012 — 최종 실행 2022-08-16", "ZFI_RPT_005 — 최종 실행 2022-09-03", "ZFI_RPT_009 — 최종 실행 2022-09-13"], "metric": 19, "drill": [["프로그램", "최종 실행"], [["ZFI_RPT_007", "2022-08-10"], ["ZSD_UTIL_012", "2022-08-16"], ["ZFI_RPT_005", "2022-09-03"], ["ZFI_RPT_009", "2022-09-13"], ["ZSD_UTIL_006", "2022-09-15"], ["ZFI_RPT_001", "2022-11-13"], ["ZSD_UTIL_004", "2023-06-01"], ["ZFI_RPT_017", "2023-06-17"], ["ZSD_UTIL_014", "2023-10-15"], ["ZSD_UTIL_008", "2024-05-10"], ["ZSD_UTIL_018", "2024-05-26"], ["ZSD_UTIL_002", "2024-06-11"], ["ZSD_UTIL_010", "2024-07-02"], ["ZSD_UTIL_000", "2024-08-11"], ["ZFI_RPT_013", "2024-08-28"], ["ZFI_RPT_003", "2024-08-30"], ["ZFI_RPT_011", "2024-11-15"], ["ZFI_RPT_015", "2025-01-16"], ["ZSD_UTIL_016", "2025-04-21"]]]}, {"id": "DG_DUMPS", "title": "[CBO] 덤프 다발 · 배치잡 실패", "severity": "WARN", "headline": "3건 — 운영 안정성 저해", "detail": ["프로그램 ZSD_UTIL_002 — 최근 90일 덤프 26회", "프로그램 ZSD_UTIL_006 — 최근 90일 덤프 22회", "배치잡 ZDAILY_AR_AGING — 3회 연속 실패"], "metric": 3}]}}};
+const SEV_LABEL = {WARN:'주의', INFO:'참고', OK:'정상'};
+const SEV_ORDER = {WARN:0, INFO:1, OK:2};
+let session = null;
+
+const MODE_NOTE = {
+  demo:  '체험 데모: 아무 값이나 입력하고 로그온하세요. 모든 데이터는 모의 데이터입니다.',
+  rfc:   '읽기 전용 서비스 계정으로 RFC 접속합니다. (pyrfc)<br>온보딩 시 능력 탐지로 ECC/S4 및 쿼리 전략을 자동 구성합니다.',
+  odata: '통신 사용자(Communication User)로 표준 OData API에 접속합니다.<br>활성화된 Communication Arrangement 기준으로 가능한 점검이 자동 구성됩니다.'
+};
+
+function switchMode(){
+  const m = document.getElementById('f-mode').value;
+  document.getElementById('grp-demo').style.display  = m==='demo'  ? '' : 'none';
+  document.getElementById('grp-rfc').style.display   = m==='rfc'   ? '' : 'none';
+  document.getElementById('grp-odata').style.display = m==='odata' ? '' : 'none';
+  document.getElementById('fld-client').style.display = m==='odata' ? 'none' : '';
+  document.getElementById('lbl-user').textContent = m==='odata' ? '통신 사용자' : '사용자';
+  document.getElementById('logon-note').innerHTML = MODE_NOTE[m];
+}
+
+function doLogon(){
+  const m = document.getElementById('f-mode').value;
+  const user = document.getElementById('f-user').value.trim();
+  const pw = document.getElementById('f-pw').value;
+  const err = document.getElementById('logon-err');
+  let connLabel = '';
+  if(m==='demo'){
+    const client = document.getElementById('f-client').value.trim();
+    if(!client || !user || !pw){ err.style.display='block'; return; }
+    connLabel = document.getElementById('f-sys').value.split(' ')[0]
+      + ' · CL' + client + ' · ' + user.toUpperCase() + ' · 데모';
+  } else if(m==='rfc'){
+    const host = document.getElementById('f-ashost').value.trim();
+    const client = document.getElementById('f-client').value.trim();
+    if(!host || !client || !user || !pw){ err.style.display='block'; return; }
+    connLabel = host + ' · CL' + client + ' · ' + user.toUpperCase() + ' · RFC';
+  } else {
+    const url = document.getElementById('f-apiurl').value.trim();
+    if(!url || !user || !pw){ err.style.display='block'; return; }
+    connLabel = url.replace('https://','').split('.')[0]
+      + ' · ' + user.toUpperCase() + ' · OData';
+  }
+  // 프로토타입: 모든 모드에서 저장된 점검 결과 표시.
+  // 실전: 모드별 백엔드 인증(pyrfc 접속 테스트 / OData $top=1 프로브) 후 진입
+  session = {mode: m, conn: connLabel};
+  document.getElementById('conn-info').textContent = connLabel;
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').style.display='block';
+  if(m!=='demo'){
+    setTimeout(()=>{
+      const t=document.getElementById('toast');
+      t.textContent='프로토타입: 실제 접속 대신 저장된 점검 결과를 표시합니다. '
+        +'(실전: '+(m==='rfc'?'RFC 접속 후 추출':'표준 API 추출')+' → 점검 → 표시)';
+      t.classList.add('show');
+      setTimeout(()=>t.classList.remove('show'), 3800);
+    }, 400);
+  }
+  buildTabs();
+}
+
+function logoff(){ location.reload(); }
+
+function buildTabs(){
+  const bar = document.getElementById('tabs');
+  bar.innerHTML='';
+  Object.entries(DATA.modules).forEach(([key,m],i)=>{
+    const sc = m.results.find(r=>r.id==='DG_SCORE');
+    const warn = m.results.filter(r=>r.severity==='WARN').length;
+    const b = document.createElement('button');
+    b.className='tab'+(i===0?' active':'');
+    const badge = sc ? sc.metric+'점' : warn;
+    b.innerHTML = m.label +
+      '<span class="badge'+((sc?sc.metric<60:warn)?'':' zero')+'">'+badge+'</span>';
+    b.onclick = ()=>{ document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+                      b.classList.add('active'); renderModule(key); };
+    bar.appendChild(b);
+  });
+  ['PP 일일점검','자금 일일점검'].forEach(nm=>{
+    const b=document.createElement('button');
+    b.className='tab soon'; b.textContent=nm+' (예정)'; bar.appendChild(b);
+  });
+  renderModule(Object.keys(DATA.modules)[0]);
+}
+
+function renderModule(key){
+  const m = DATA.modules[key];
+  let res = [...m.results];
+  const scoreItem = res.find(r=>r.id==='DG_SCORE');
+  if(scoreItem) res = res.filter(r=>r.id!=='DG_SCORE');
+  res.sort((a,b)=>SEV_ORDER[a.severity]-SEV_ORDER[b.severity]);
+  const cnt = s => res.filter(r=>r.severity===s).length;
+  let cards='';
+  res.forEach((r,i)=>{
+    let detail='';
+    if(r.detail && r.detail.length)
+      detail='<ul>'+r.detail.slice(0,3).map(d=>'<li>'+d+'</li>').join('')+'</ul>';
+    let drill='';
+    if(r.drill){
+      const id='d-'+key+'-'+i;
+      drill='<button class="btn" onclick="toggleDrill(\''+id+'\',this)">상세내역</button>'
+        +'<div class="drill" id="'+id+'"><table><thead><tr>'
+        +r.drill.cols.map(c=>'<th>'+c+'</th>').join('')
+        +'</tr></thead><tbody>'
+        +r.drill.rows.map(row=>'<tr>'+row.map(c=>'<td>'+c+'</td>').join('')+'</tr>').join('')
+        +'</tbody></table></div>';
+    }
+    cards+='<div class="card '+r.severity+'"><div class="row1"><h3>'+r.title
+      +'</h3><span class="tag">'+SEV_LABEL[r.severity]+'</span></div>'
+      +'<div class="head">'+r.headline+'</div>'+detail+drill+'</div>';
+  });
+  let scoreBanner = '';
+  if(scoreItem){
+    const sc = scoreItem.metric;
+    const col = sc>=80 ? 'var(--ok)' : sc>=60 ? 'var(--info)' : 'var(--warn)';
+    scoreBanner =
+      '<div style="display:flex;align-items:center;gap:22px;background:var(--card);'
+      +'border:1px solid var(--rule);border-left:8px solid '+col+';'
+      +'padding:16px 22px;margin-bottom:14px">'
+      +'<div style="font-size:44px;font-weight:800;color:'+col
+      +';font-variant-numeric:tabular-nums;line-height:1">'+sc+'<span '
+      +'style="font-size:15px;color:var(--mut);font-weight:600"> /100</span></div>'
+      +'<div><div style="font-size:16px;font-weight:700">'+scoreItem.headline+'</div>'
+      +'<div style="font-size:12.5px;color:var(--mut);margin-top:3px">'
+      +scoreItem.detail.join(' · ')+'</div></div></div>';
+  }
+  document.getElementById('page').innerHTML =
+    scoreBanner
+    +'<div class="rhead"><h2>'+m.label+' 보고</h2>'
+    +'<div class="meta">점검 대상: '+m.target+' · 발행: '+DATA.generated_at
+    +' · '+m.scope+'</div></div>'
+    +'<div class="summary">'
+    +'<div class="n-warn"><b>'+cnt('WARN')+'</b><span>주의 필요</span></div>'
+    +'<div class="n-info"><b>'+cnt('INFO')+'</b><span>참고</span></div>'
+    +'<div class="n-ok"><b>'+cnt('OK')+'</b><span>정상</span></div></div>'
+    +'<div class="grid">'+cards+'</div>'
+    +'<div class="pfoot"><span>기준선: 직전 30영업일 이동평균</span>'
+    +'<span>MAL4SAP by NOAHLABS (prototype)</span></div>';
+}
+
+function toggleDrill(id, btn){
+  const el=document.getElementById(id);
+  const open=el.classList.toggle('open');
+  btn.textContent = open ? '상세내역 닫기' : '상세내역';
+}
+
+function runNow(){
+  // 데모: 임베드 데이터 재렌더 + 토스트. 실전: POST /api/run → 폴링 → 갱신
+  const t=document.getElementById('toast');
+  t.textContent='점검 실행 요청 — 데모 모드에서는 저장된 결과를 다시 표시합니다. '
+    +'(실전: 서버가 SAP 접속 후 전 모듈 재점검)';
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 3200);
+  const active=document.querySelector('.tab.active');
+  if(active) active.click();
+}
+</script>
+</body></html>
