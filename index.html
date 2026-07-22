@@ -6015,6 +6015,7 @@ function ToolPicker({ onSelect, startPage, onStartPageChange, user, profile, isL
       { id: 'jobs',  label: t('menu_jobs') },
     ]},
     { id: 'malcontract', label: (lang === 'en' ? '✍️ MAL Contract' : '✍️ 말계약'), isTool: true },
+    { id: 'mal4sap', label: '🌅 MAL4SAP', external: 'mal4sap_maltools.html' },
     { id: 'about-group', label: t('menu_about_group'), isDropdown: true, dropdownKey: 'about', children: [
       { id: 'why',      label: t('menu_why') },
       { id: 'roadmap',  label: t('menu_roadmap') },
@@ -6278,6 +6279,7 @@ function ToolPicker({ onSelect, startPage, onStartPageChange, user, profile, isL
     { id: 'malcoding',  name: '말코딩',   accent: '#9B59B6', label: 'MAL Coding',        icon: '💻', desc: 'ABAP 코드 생성',   available: true, badge: 'beta' },
     { id: 'malops',     name: '말QnA',    accent: '#E74C3C', label: 'MAL QnA',           icon: '🎯', desc: '구축·운영 티켓 처리', available: true, badge: 'beta' },
     { id: 'malcontract',name: '말계약',   accent: '#E67E22', label: 'MAL Contract',      icon: '✍️', desc: '전자계약 작성·서명', available: true, badge: 'soon' },
+    { id: 'mal4sap',    name: '말포샙',   accent: '#29394A', label: 'MAL4SAP',           icon: '🌅', desc: 'SAP 일일점검·진단 데모', available: true, badge: 'demo', external: 'mal4sap_maltools.html' },
   ];
 
   return (
@@ -6493,13 +6495,16 @@ function ToolPicker({ onSelect, startPage, onStartPageChange, user, profile, isL
           <div
             key={tool.id}
             className={'tool-card' + (tool.available ? ' available' : ' coming')}
-            onClick={() => onSelect(tool.id)}
+            onClick={() => tool.external ? window.open(tool.external, '_blank', 'noopener') : onSelect(tool.id)}
           >
             {tool.badge === 'open' && (
               <div className="tool-access-badge open">🚀 가오픈</div>
             )}
             {tool.badge === 'beta' && (
               <div className="tool-access-badge beta">🔒 베타 회원</div>
+            )}
+            {tool.badge === 'demo' && (
+              <div className="tool-access-badge open">🧪 데모 체험</div>
             )}
             {tool.badge === 'soon' && (
               <div className="tool-access-badge soon">🔜 서비스 예정</div>
