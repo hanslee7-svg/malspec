@@ -761,8 +761,33 @@ function ContractEditor({ user, onDone }) {
   const [loading, setLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [addingField, setAddingField] = useState(null); // field type to add
+  const [imgLoaded, setImgLoaded] = useState(0);
   const fileInputRef = useRef(null);
   const docRef = useRef(null);
+  
+  // 이미지 로드 감지 (배치 시 정확한 문서 크기 확보)
+  useEffect(() => {
+    if (!html || !docRef.current || step !== 2) return;
+    const images = docRef.current.querySelectorAll('img');
+    if (images.length === 0) return;
+    
+    const onLoad = () => setImgLoaded(x => x + 1);
+    
+    images.forEach(img => {
+      if (img.complete) onLoad();
+      else {
+        img.addEventListener('load', onLoad);
+        img.addEventListener('error', onLoad);
+      }
+    });
+    
+    return () => {
+      images.forEach(img => {
+        img.removeEventListener('load', onLoad);
+        img.removeEventListener('error', onLoad);
+      });
+    };
+  }, [html, step]);
   
   const handleFile = async (file) => {
     if (!file) return;
@@ -1184,6 +1209,8 @@ function ContractList({ user, onNew, onView }) {
 // ============ Sender: Contract Detail ============
 function ContractDetail({ contract, onBack, onRefresh }) {
   const [c, setC] = useState(contract);
+  const [imgLoaded, setImgLoaded] = useState(0);
+  const detailRef = useRef(null);
   
   useEffect(() => {
     const channel = supabase.channel('contract-' + c.id)
@@ -1194,6 +1221,30 @@ function ContractDetail({ contract, onBack, onRefresh }) {
       .subscribe();
     return () => supabase.removeChannel(channel);
   }, [c.id]);
+  
+  // 이미지 로드 감지 → 필드 위치 재계산
+  useEffect(() => {
+    if (!detailRef.current) return;
+    const images = detailRef.current.querySelectorAll('img');
+    if (images.length === 0) return;
+    
+    const onLoad = () => setImgLoaded(x => x + 1);
+    
+    images.forEach(img => {
+      if (img.complete) onLoad();
+      else {
+        img.addEventListener('load', onLoad);
+        img.addEventListener('error', onLoad);
+      }
+    });
+    
+    return () => {
+      images.forEach(img => {
+        img.removeEventListener('load', onLoad);
+        img.removeEventListener('error', onLoad);
+      });
+    };
+  }, [c.original_html, c.signed_html]);
   
   const copyLink = () => {
     const url = window.location.origin + window.location.pathname + '?sign=' + c.sign_token;
@@ -1255,7 +1306,10 @@ function ContractDetail({ contract, onBack, onRefresh }) {
         id: 'contract-detail-content',
         className: 'doc-container',
       },
-        h('div', { style: { position: 'relative' } },
+        h('div', { 
+          ref: detailRef,
+          style: { position: 'relative' } 
+        },
           h('div', { 
             className: 'doc-content',
             dangerouslySetInnerHTML: { __html: c.signed_html || c.original_html } 
@@ -1291,11 +1345,44 @@ function SignView({ token }) {
   const [signingFieldId, setSigningFieldId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(0); // 이미지 로드 카운터 (강제 리렌더)
   const docRef = useRef(null);
   
   useEffect(() => {
     load();
   }, [token]);
+  
+  // 이미지 로드 감지 → 필드 위치 재계산 (CSS % 자동 재계산 트리거)
+  useEffect(() => {
+    if (!contract || !docRef.current) return;
+    const images = docRef.current.querySelectorAll('img');
+    if (images.length === 0) return;
+    
+    let count = 0;
+    const onLoad = () => {
+      count++;
+      setImgLoaded(x => x + 1); // 강제 리렌더 트리거
+    };
+    
+    images.forEach(img => {
+      if (img.complete) {
+        count++;
+      } else {
+        img.addEventListener('load', onLoad);
+        img.addEventListener('error', onLoad);
+      }
+    });
+    
+    // 초기 카운트가 있으면 한 번 트리거
+    if (count > 0) setImgLoaded(x => x + 1);
+    
+    return () => {
+      images.forEach(img => {
+        img.removeEventListener('load', onLoad);
+        img.removeEventListener('error', onLoad);
+      });
+    };
+  }, [contract]);
   
   const load = async () => {
     setLoading(true);
