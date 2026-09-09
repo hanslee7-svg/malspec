@@ -1407,6 +1407,15 @@ function ContractDetail({ contract, onBack, onRefresh }) {
   };
   
   const downloadPDF = () => {
+    // 저장된 signed_pdf 우선 사용 (완성본 - 서명 포함)
+    if (c.signed_pdf) {
+      const a = document.createElement('a');
+      a.href = c.signed_pdf;
+      a.download = c.title + '_서명완료.pdf';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      return;
+    }
+    // fallback: 현재 화면을 PDF 로 (신구 계약 호환)
     const container = document.getElementById('contract-detail-content');
     if (!container) return;
     window.html2pdf().set({
@@ -1423,6 +1432,24 @@ function ContractDetail({ contract, onBack, onRefresh }) {
       h('button', { className: 'btn-ghost', onClick: copyLink }, '🔗 링크 복사'),
       c.status !== 'signed' ? h('button', { className: 'btn-ghost', onClick: resendMail }, '📧 메일 재발송') : null,
       c.status === 'signed' ? h('button', { className: 'btn-primary', onClick: downloadPDF }, '📄 PDF 다운로드') : null,
+      c.status === 'signed' && c.signed_pdf ? h('button', { 
+        className: 'btn-ghost',
+        onClick: () => {
+          const subject = encodeURIComponent('[말계약] 완성본: ' + c.title);
+          const body = encodeURIComponent(
+            '안녕하세요,\n\n' +
+            '"' + c.title + '" 서명 완료본을 전달합니다.\n\n' +
+            '📋 계약: ' + c.title + '\n' +
+            '👤 발신자: ' + c.sender_email + '\n' +
+            '👤 수신자: ' + c.recipient_email + '\n' +
+            '✅ 서명일: ' + (c.signed_at ? new Date(c.signed_at).toLocaleString('ko-KR') : '-') + '\n\n' +
+            '완성본 PDF 는 이 이메일 답장 후 별도로 첨부해서 보내주세요.\n' +
+            '(또는 말계약 대시보드에서 직접 다운로드)\n\n' +
+            '— 말계약'
+          );
+          window.location.href = 'mailto:' + c.recipient_email + '?cc=' + c.sender_email + '&subject=' + subject + '&body=' + body;
+        }
+      }, '📤 완성본 전달') : null,
       h('div', { style: { flex: 1 } }),
       h('button', { 
         onClick: async () => {
@@ -1629,19 +1656,51 @@ function SignView({ token }) {
       const firstSig = filledFields.find(f => f.type === 'signature');
       const sigData = firstSig?.value;
       
-      // 완성 HTML 생성 (필드를 HTML로 삽입)
-      const signedHtml = buildSignedHtml(contract.original_html, filledFields);
+      // PDF 생성 대기 (DOM 반영 위해)
+      await new Promise(r => setTimeout(r, 300));
       
-      const { error } = await supabase.from('contracts').update({
+      // 서명된 화면을 PDF 로 변환
+      let signedPdfBase64 = null;
+      try {
+        const target = docRef.current;
+        if (target && window.html2pdf) {
+          const opt = {
+            margin: 8,
+            filename: contract.title + '_서명완료.pdf',
+            image: { type: 'jpeg', quality: 0.95 },
+            html2canvas: { scale: 2, useCORS: true, logging: false },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          };
+          const worker = window.html2pdf().set(opt).from(target);
+          const blob = await worker.output('blob');
+          signedPdfBase64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        }
+      } catch (pdfErr) {
+        console.warn('PDF 생성 실패 (계속 저장):', pdfErr);
+      }
+      
+      // Supabase 저장
+      const updateData = {
         status: 'signed',
         signed_at: new Date().toISOString(),
         fields: filledFields,
-        signed_html: signedHtml,
+        signed_html: contract.original_html,
         signature_data: sigData,
         user_agent: navigator.userAgent,
-      }).eq('id', contract.id);
+      };
+      if (signedPdfBase64) updateData.signed_pdf = signedPdfBase64;
+      
+      const { error } = await supabase.from('contracts').update(updateData).eq('id', contract.id);
       
       if (error) throw error;
+      
+      // 로컬 contract 업데이트 (완료 화면에서 다운로드용)
+      setContract(c => ({ ...c, ...updateData }));
       setDone(true);
     } catch (e) {
       alert('서명 저장 실패: ' + e.message);
@@ -1665,15 +1724,74 @@ function SignView({ token }) {
     ),
   );
   
-  if (done) return h('div', { className: 'main' },
-    h('div', { className: 'card empty' },
-      h('div', { className: 'empty-icon' }, '✅'),
-      h('div', { className: 'empty-title' }, '서명 완료!'),
-      h('div', { className: 'empty-desc' }, 
-        contract.sender_name + '님에게 서명 완료가 통보됩니다. 브라우저 창을 닫으셔도 됩니다.'
+  if (done) {
+    const downloadMyCopy = () => {
+      if (!contract.signed_pdf) {
+        alert('PDF가 아직 생성 중입니다. 잠시 후 다시 시도해주세요.');
+        return;
+      }
+      const a = document.createElement('a');
+      a.href = contract.signed_pdf;
+      a.download = contract.title + '_서명완료.pdf';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    };
+    
+    const notifySender = () => {
+      const subject = encodeURIComponent('[말계약] 서명 완료 - ' + contract.title);
+      const dashboardUrl = window.location.origin + window.location.pathname;
+      const body = encodeURIComponent(
+        (contract.sender_name || '안녕하세요') + '님,\n\n' +
+        '요청하신 계약 "' + contract.title + '"의 서명을 완료했습니다.\n\n' +
+        '━━━━━━━━━━━━━━━━━━━━━\n' +
+        '📋 계약: ' + contract.title + '\n' +
+        '✅ 서명일: ' + new Date().toLocaleString('ko-KR') + '\n' +
+        '━━━━━━━━━━━━━━━━━━━━━\n\n' +
+        '완성본은 말계약 대시보드에서 다운로드하실 수 있습니다:\n' +
+        dashboardUrl + '\n\n' +
+        '감사합니다.\n\n' +
+        '— ' + (authEmail || contract.recipient_email)
+      );
+      window.location.href = 'mailto:' + contract.sender_email + '?subject=' + subject + '&body=' + body;
+    };
+    
+    return h('div', { className: 'main sign-view', style: { paddingTop: '40px !important' } },
+      h('div', { className: 'auth-card', style: { maxWidth: 500, margin: '40px auto' } },
+        h('div', { className: 'auth-icon' }, '✅'),
+        h('div', { className: 'auth-title', style: { color: 'var(--success)', fontSize: 22 } }, 
+          '서명 완료!'
+        ),
+        h('div', { className: 'auth-contract-title' }, contract.title),
+        h('div', { className: 'auth-desc' },
+          h('strong', null, contract.sender_name || contract.sender_email),
+          '님에게 서명 완료가 통보됩니다.',
+          h('br'),
+          '아래 버튼으로 사본을 받으실 수 있습니다.',
+        ),
+        h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 } },
+          h('button', {
+            className: 'btn-primary',
+            onClick: downloadMyCopy,
+            style: { padding: '14px', fontSize: 14 },
+          }, '📥 내 사본 다운로드 (PDF)'),
+          h('button', {
+            onClick: notifySender,
+            style: {
+              padding: '12px', fontSize: 13, fontWeight: 600,
+              background: 'white', color: 'var(--primary)',
+              border: '1px solid var(--primary)', borderRadius: 8,
+              cursor: 'pointer',
+            },
+          }, '📧 발신자에게 완료 알림 보내기'),
+        ),
+        h('div', { style: { fontSize: 11, color: 'var(--text-sub)', marginTop: 20, lineHeight: 1.6 } },
+          '💡 안내', h('br'),
+          '• 발신자는 실시간으로 서명 완료를 확인합니다', h('br'),
+          '• 사본은 언제든 다시 받으실 수 있게 이메일 알림 보내주세요', h('br'),
+          '• 브라우저 창을 닫으셔도 됩니다',
+        ),
       ),
-    ),
-  );
+    );
+  }
   
   const requiredFields = (contract.fields || []).filter(f => f.type === 'signature');
   const allSigned = requiredFields.every(f => fieldValues[f.id]);
