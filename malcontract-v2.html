@@ -447,18 +447,26 @@ textarea { resize: vertical; }
 .empty-desc { font-size: 13px; margin-bottom: 20px; }
 
 /* Recipient sign view specific */
+.sign-view { 
+  padding-top: 100px !important; /* fixed header 여백 */
+}
 .sign-view .doc-container { max-width: 900px; margin: 0 auto; }
 
 .sign-header {
-  background: white;
-  border-radius: 12px;
-  padding: 14px 20px;
-  margin-bottom: 16px;
-  border-left: 4px solid var(--primary);
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 20;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: white;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  border-bottom: 3px solid var(--primary);
+}
+
+.sign-header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 12px 24px;
 }
 
 .sign-header-top {
@@ -487,12 +495,17 @@ textarea { resize: vertical; }
 .sign-progress.complete { background: #DFF5E5; color: var(--success); }
 
 .sign-message-box {
-  margin-top: 10px;
-  padding: 8px 12px;
+  margin-top: 8px;
+  padding: 6px 12px;
   background: var(--bg);
   border-radius: 6px;
   font-size: 12px;
   color: var(--text-sub);
+}
+
+@media (max-width: 600px) {
+  .sign-view { padding-top: 130px !important; }
+  .sign-header-inner { padding: 10px 14px; }
 }
 
 /* Mobile */
@@ -1567,33 +1580,35 @@ function SignView({ token }) {
   
   return h('div', { className: 'main sign-view' },
     h('div', { className: 'sign-header' },
-      h('div', { className: 'sign-header-top' },
-        h('div', { style: { flex: 1, minWidth: 0 } },
-          h('div', { className: 'sign-header-title' }, '📝 ', contract.title),
-          h('div', { className: 'sign-header-meta' },
-            contract.sender_name + ' (' + contract.sender_email + ') 님이 서명 요청',
+      h('div', { className: 'sign-header-inner' },
+        h('div', { className: 'sign-header-top' },
+          h('div', { style: { flex: 1, minWidth: 0 } },
+            h('div', { className: 'sign-header-title' }, '📝 ', contract.title),
+            h('div', { className: 'sign-header-meta' },
+              contract.sender_name + ' (' + contract.sender_email + ') 님이 서명 요청',
+            ),
+          ),
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 } },
+            requiredFields.length > 0 
+              ? h('div', { 
+                  className: 'sign-progress' + (allSigned ? ' complete' : ''),
+                }, 
+                  allSigned ? '✓' : '📌',
+                  ' 서명 ' + requiredFields.filter(f => fieldValues[f.id]).length + '/' + requiredFields.length,
+                )
+              : null,
+            h('button', { 
+              className: 'btn-primary', 
+              onClick: handleSubmit, 
+              disabled: submitting || !allSigned,
+              style: { padding: '10px 18px', fontSize: 14 },
+            }, submitting ? '저장 중...' : '✅ 서명 완료'),
           ),
         ),
-        h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 } },
-          requiredFields.length > 0 
-            ? h('div', { 
-                className: 'sign-progress' + (allSigned ? ' complete' : ''),
-              }, 
-                allSigned ? '✓' : '📌',
-                ' 서명 ' + requiredFields.filter(f => fieldValues[f.id]).length + '/' + requiredFields.length,
-              )
-            : null,
-          h('button', { 
-            className: 'btn-primary', 
-            onClick: handleSubmit, 
-            disabled: submitting || !allSigned,
-            style: { padding: '10px 18px', fontSize: 14 },
-          }, submitting ? '저장 중...' : '✅ 서명 완료'),
-        ),
+        contract.message ? h('div', { className: 'sign-message-box' }, 
+          '💬 ', contract.message
+        ) : null,
       ),
-      contract.message ? h('div', { className: 'sign-message-box' }, 
-        '💬 ', contract.message
-      ) : null,
     ),
     
     h('div', { className: 'doc-container' },
