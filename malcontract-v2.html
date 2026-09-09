@@ -831,15 +831,20 @@ function ContractEditor({ user, onDone }) {
   
   const handleDocClick = (e) => {
     if (!addingField) return;
-    const rect = docRef.current.getBoundingClientRect();
+    // docRef (wrapper) 기준으로 좌표 계산 - doc-content 를 감싸는 relative wrapper
+    const wrapEl = docRef.current;
+    if (!wrapEl) return;
+    const rect = wrapEl.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top + docRef.current.scrollTop;
+    const y = e.clientY - rect.top;
+    const w = wrapEl.offsetWidth;
+    const hh = wrapEl.offsetHeight;
     const fieldType = FIELD_TYPES.find(f => f.id === addingField);
     const newField = {
       id: uuid(),
       type: addingField,
-      x: x - fieldType.width / 2,
-      y: y - fieldType.height / 2,
+      xPercent: ((x - fieldType.width / 2) / w) * 100,
+      yPercent: ((y - fieldType.height / 2) / hh) * 100,
       width: fieldType.width,
       height: fieldType.height,
       value: null,
@@ -858,14 +863,23 @@ function ContractEditor({ user, onDone }) {
     e.stopPropagation();
     if (e.target.classList.contains('field-remove')) return;
     setSelectedFieldId(field.id);
+    const wrapEl = docRef.current;
+    if (!wrapEl) return;
+    const w = wrapEl.offsetWidth;
+    const hh = wrapEl.offsetHeight;
     const startX = e.clientX, startY = e.clientY;
-    const origX = field.x, origY = field.y;
+    const origXPercent = field.xPercent != null ? field.xPercent : (field.x / w * 100);
+    const origYPercent = field.yPercent != null ? field.yPercent : (field.y / hh * 100);
     
     const onMove = (ev) => {
       const dx = ev.clientX - startX;
       const dy = ev.clientY - startY;
+      const newXPercent = origXPercent + (dx / w) * 100;
+      const newYPercent = origYPercent + (dy / hh) * 100;
       setFields(fs => fs.map(f => 
-        f.id === field.id ? { ...f, x: origX + dx, y: origY + dy } : f
+        f.id === field.id 
+          ? { ...f, xPercent: newXPercent, yPercent: newYPercent, x: undefined, y: undefined } 
+          : f
       ));
     };
     const onUp = () => {
@@ -992,35 +1006,41 @@ function ContractEditor({ user, onDone }) {
           ),
         ),
         h('div', { 
-          ref: docRef,
           className: 'doc-container', 
           style: { cursor: addingField ? 'crosshair' : 'default' },
           onClick: handleDocClick,
         },
           h('div', { 
-            className: 'doc-content',
-            dangerouslySetInnerHTML: { __html: html } 
-          }),
-          fields.map(f => {
-            const type = FIELD_TYPES.find(t => t.id === f.type);
-            return h('div', {
-              key: f.id,
-              className: 'field-overlay' + (f.type === 'signature' ? ' signature' : '') + 
-                (selectedFieldId === f.id ? ' selected' : ''),
-              style: {
-                left: f.x, top: f.y,
-                width: f.width, height: f.height,
+            ref: docRef,
+            style: { position: 'relative' },
+          },
+            h('div', { 
+              className: 'doc-content',
+              dangerouslySetInnerHTML: { __html: html } 
+            }),
+            fields.map(f => {
+              const type = FIELD_TYPES.find(t => t.id === f.type);
+              const useLeft = f.xPercent != null ? (f.xPercent + '%') : f.x;
+              const useTop = f.yPercent != null ? (f.yPercent + '%') : f.y;
+              return h('div', {
+                key: f.id,
+                className: 'field-overlay' + (f.type === 'signature' ? ' signature' : '') + 
+                  (selectedFieldId === f.id ? ' selected' : ''),
+                style: {
+                  left: useLeft, top: useTop,
+                  width: f.width, height: f.height,
+                },
+                onMouseDown: (e) => startFieldDrag(e, f),
+                onClick: (e) => e.stopPropagation(),
               },
-              onMouseDown: (e) => startFieldDrag(e, f),
-              onClick: (e) => e.stopPropagation(),
-            },
-              type.icon + ' ' + type.label.split(' ')[1],
-              h('button', {
-                className: 'field-remove',
-                onClick: (e) => { e.stopPropagation(); removeField(f.id); },
-              }, '×'),
-            );
-          }),
+                type.icon + ' ' + type.label.split(' ')[1],
+                h('button', {
+                  className: 'field-remove',
+                  onClick: (e) => { e.stopPropagation(); removeField(f.id); },
+                }, '×'),
+              );
+            }),
+          ),
         ),
       ),
       h('div', { style: { display: 'flex', justifyContent: 'space-between', marginTop: 16 } },
@@ -1225,26 +1245,30 @@ function ContractDetail({ contract, onBack, onRefresh }) {
     h('div', { className: 'card' },
       h('div', { 
         id: 'contract-detail-content',
-        className: 'doc-container', style: { position: 'relative' } 
+        className: 'doc-container',
       },
-        h('div', { 
-          className: 'doc-content',
-          dangerouslySetInnerHTML: { __html: c.signed_html || c.original_html } 
-        }),
-        // 필드 미리보기 (서명 안 됨)
-        !c.signed_html && (c.fields || []).map(f => {
-          const type = FIELD_TYPES.find(t => t.id === f.type);
-          const filled = f.value != null;
-          return h('div', {
-            key: f.id,
-            className: 'field-overlay' + (f.type === 'signature' ? ' signature' : '') + (filled ? ' filled' : ''),
-            style: { left: f.x, top: f.y, width: f.width, height: f.height, cursor: 'default' },
-          },
-            f.type === 'signature' && filled 
-              ? h('img', { src: f.value, alt: '서명' })
-              : (filled ? f.value : type.icon + ' ' + type.label.split(' ')[1])
-          );
-        }),
+        h('div', { style: { position: 'relative' } },
+          h('div', { 
+            className: 'doc-content',
+            dangerouslySetInnerHTML: { __html: c.signed_html || c.original_html } 
+          }),
+          // 서명 완료된 계약이든 아니든 필드 표시
+          (c.fields || []).map(f => {
+            const type = FIELD_TYPES.find(t => t.id === f.type);
+            const filled = f.value != null;
+            const useLeft = f.xPercent != null ? (f.xPercent + '%') : f.x;
+            const useTop = f.yPercent != null ? (f.yPercent + '%') : f.y;
+            return h('div', {
+              key: f.id,
+              className: 'field-overlay' + (f.type === 'signature' ? ' signature' : '') + (filled ? ' filled' : ''),
+              style: { left: useLeft, top: useTop, width: f.width, height: f.height, cursor: 'default' },
+            },
+              f.type === 'signature' && filled 
+                ? h('img', { src: f.value, alt: '서명' })
+                : (filled ? f.value : type.icon + ' ' + type.label.split(' ')[1])
+            );
+          }),
+        ),
       ),
     ),
   );
@@ -1386,22 +1410,25 @@ function SignView({ token }) {
       }, '💬 ', contract.message) : null,
     ),
     
-    h('div', { 
-      ref: docRef,
-      className: 'doc-container', style: { position: 'relative' } 
-    },
+    h('div', { className: 'doc-container' },
       h('div', { 
-        className: 'doc-content',
-        dangerouslySetInnerHTML: { __html: contract.original_html } 
-      }),
-      (contract.fields || []).map(f => {
-        const type = FIELD_TYPES.find(t => t.id === f.type);
-        const value = fieldValues[f.id];
-        const filled = value != null && value !== '';
+        ref: docRef,
+        style: { position: 'relative' } 
+      },
+        h('div', { 
+          className: 'doc-content',
+          dangerouslySetInnerHTML: { __html: contract.original_html } 
+        }),
+        (contract.fields || []).map(f => {
+          const type = FIELD_TYPES.find(t => t.id === f.type);
+          const value = fieldValues[f.id];
+          const filled = value != null && value !== '';
+          const useLeft = f.xPercent != null ? (f.xPercent + '%') : f.x;
+        const useTop = f.yPercent != null ? (f.yPercent + '%') : f.y;
         return h('div', {
           key: f.id,
           className: 'field-overlay' + (f.type === 'signature' ? ' signature' : '') + (filled ? ' filled' : ''),
-          style: { left: f.x, top: f.y, width: f.width, height: f.height },
+          style: { left: useLeft, top: useTop, width: f.width, height: f.height },
           onClick: () => {
             if (f.type === 'signature') {
               setSigningFieldId(f.id);
@@ -1418,6 +1445,7 @@ function SignView({ token }) {
             : (filled ? value : type.icon + ' ' + type.label.split(' ')[1] + ' 클릭')
         );
       }),
+      ),
     ),
     
     h('div', { className: 'sign-footer' },
