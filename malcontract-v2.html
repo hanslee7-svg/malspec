@@ -1,0 +1,1478 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>말계약 v2 — 전자 서명 계약</title>
+<meta name="theme-color" content="#E67E22">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<style>
+:root {
+  --primary: #E67E22;
+  --primary-dark: #D35400;
+  --primary-light: #FDF3E7;
+  --secondary: #2C3E50;
+  --bg: #F8F9FA;
+  --bg-white: #FFFFFF;
+  --border: #E1E6EB;
+  --text: #1A1F26;
+  --text-sub: #647079;
+  --success: #27AE60;
+  --warning: #F39C12;
+  --error: #C0392B;
+  --radius: 8px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow: 0 2px 8px rgba(0,0,0,0.06);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font-family: inherit; cursor: pointer; }
+input, textarea, select { font-family: inherit; font-size: inherit; }
+textarea { resize: vertical; }
+
+/* Layout */
+.app { min-height: 100vh; display: flex; flex-direction: column; }
+
+.header {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: white;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(230,126,34,0.2);
+}
+
+.logo {
+  display: flex; align-items: center; gap: 10px;
+  font-weight: 700; font-size: 18px;
+}
+
+.logo-badge {
+  background: rgba(255,255,255,0.25);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.header-actions { display: flex; gap: 8px; }
+
+.header-btn {
+  background: rgba(255,255,255,0.2);
+  color: white;
+  border: none;
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.header-btn:hover { background: rgba(255,255,255,0.3); }
+
+.main {
+  flex: 1;
+  padding: 24px;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Card */
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 16px;
+}
+
+.card-title {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  display: flex; align-items: center; gap: 8px;
+}
+
+.card-desc {
+  font-size: 13px;
+  color: var(--text-sub);
+  margin-bottom: 20px;
+}
+
+/* Buttons */
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.15s;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-primary:disabled { background: #BFCCD6; cursor: not-allowed; }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-sub);
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.btn-ghost:hover { color: var(--primary); border-color: var(--primary); background: var(--primary-light); }
+
+.btn-danger {
+  background: var(--error);
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+/* Form */
+.field-input, .field-textarea, .field-select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.field-input:focus, .field-textarea:focus, .field-select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(230,126,34,0.1);
+}
+
+.field-label {
+  font-size: 12px; font-weight: 600;
+  margin-bottom: 6px; display: block;
+}
+
+.field-required { color: var(--error); }
+
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.form-row.col-1 { grid-template-columns: 1fr; }
+
+/* Upload */
+.upload-box {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--bg);
+  transition: all 0.15s;
+}
+
+.upload-box:hover, .upload-box.dragover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.upload-icon { font-size: 40px; margin-bottom: 10px; }
+.upload-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.upload-hint { font-size: 12px; color: var(--text-sub); }
+
+/* Document preview */
+.doc-container {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  min-height: 400px;
+}
+
+.doc-content {
+  padding: 40px 60px;
+  min-height: 800px;
+  position: relative;
+  font-size: 13px;
+  line-height: 1.8;
+  color: #1A1F26;
+}
+
+.doc-content h1, .doc-content h2, .doc-content h3 {
+  margin: 1em 0 0.5em;
+  font-weight: 700;
+}
+.doc-content h1 { font-size: 22px; }
+.doc-content h2 { font-size: 18px; }
+.doc-content h3 { font-size: 15px; }
+.doc-content p { margin: 0.7em 0; }
+.doc-content ul, .doc-content ol { padding-left: 24px; margin: 0.7em 0; }
+.doc-content table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+.doc-content th, .doc-content td { border: 1px solid #999; padding: 6px 10px; }
+.doc-content th { background: #F0F4F7; font-weight: 700; }
+
+/* Field overlay */
+.field-overlay {
+  position: absolute;
+  border: 2px dashed var(--primary);
+  background: rgba(230,126,34,0.1);
+  border-radius: 6px;
+  cursor: move;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary-dark);
+  min-width: 100px;
+  min-height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  user-select: none;
+}
+
+.field-overlay.signature { min-width: 140px; min-height: 50px; }
+.field-overlay:hover { background: rgba(230,126,34,0.2); }
+.field-overlay.selected { border-style: solid; box-shadow: 0 0 0 3px rgba(230,126,34,0.3); }
+
+.field-remove {
+  position: absolute;
+  top: -8px; right: -8px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--error);
+  color: white;
+  border: none;
+  font-size: 12px;
+  display: none;
+}
+
+.field-overlay:hover .field-remove,
+.field-overlay.selected .field-remove {
+  display: flex; align-items: center; justify-content: center;
+}
+
+.field-overlay.filled {
+  border-style: solid;
+  background: rgba(39,174,96,0.1);
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.field-overlay.signature.filled img {
+  max-width: 100%; max-height: 100%; object-fit: contain;
+}
+
+/* Field toolbar */
+.field-toolbar {
+  display: flex; gap: 8px; margin-bottom: 12px;
+  padding: 12px; background: var(--bg); border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.field-add-btn {
+  background: white;
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: all 0.15s;
+}
+
+.field-add-btn:hover {
+  border-color: var(--primary); color: var(--primary);
+  background: var(--primary-light);
+}
+
+/* Signature pad */
+.signature-pad-container {
+  background: white;
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.signature-pad {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: crosshair;
+  touch-action: none;
+  background: white;
+  display: block;
+  width: 100%;
+  height: 200px;
+}
+
+.signature-actions { display: flex; gap: 8px; margin-top: 10px; }
+
+/* Modal */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100; padding: 20px;
+}
+
+.modal {
+  background: white;
+  border-radius: 12px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-header {
+  padding: 18px 24px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+
+.modal-title { font-size: 17px; font-weight: 700; }
+
+.modal-close {
+  background: transparent; border: none;
+  font-size: 22px; color: var(--text-sub);
+  width: 30px; height: 30px;
+  border-radius: 6px;
+}
+
+.modal-body { padding: 20px 24px; }
+.modal-footer {
+  padding: 12px 24px 20px;
+  display: flex; gap: 8px; justify-content: flex-end;
+}
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--secondary);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  z-index: 300;
+  box-shadow: var(--shadow-lg);
+}
+
+/* Loading */
+.loading-overlay {
+  position: fixed; inset: 0;
+  background: rgba(255,255,255,0.9);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 200; gap: 12px;
+}
+
+.spinner {
+  width: 40px; height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Status badge */
+.status-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.status-sent { background: #E3F2FD; color: #1565C0; }
+.status-viewed { background: #FFF3E0; color: #E65100; }
+.status-signed { background: #E8F5E9; color: #2E7D32; }
+.status-expired { background: #FFEBEE; color: #C62828; }
+.status-cancelled { background: #F5F5F5; color: #616161; }
+
+/* Contract list */
+.contract-list { display: grid; gap: 10px; }
+
+.contract-item {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.contract-item:hover {
+  border-color: var(--primary);
+  box-shadow: var(--shadow);
+}
+
+.contract-info { flex: 1; min-width: 0; }
+.contract-title {
+  font-size: 14px; font-weight: 600;
+  margin-bottom: 3px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.contract-meta { font-size: 11px; color: var(--text-sub); }
+
+/* Empty state */
+.empty {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-sub);
+}
+.empty-icon { font-size: 56px; margin-bottom: 12px; opacity: 0.4; }
+.empty-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+.empty-desc { font-size: 13px; margin-bottom: 20px; }
+
+/* Recipient sign view specific */
+.sign-view .doc-container { max-width: 900px; margin: 0 auto; }
+
+.sign-header {
+  background: white;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  border-left: 4px solid var(--primary);
+}
+
+.sign-header-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+.sign-header-meta { font-size: 12px; color: var(--text-sub); }
+
+.sign-footer {
+  position: sticky; bottom: 0;
+  background: white;
+  border-top: 1px solid var(--border);
+  padding: 14px 20px;
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px;
+  box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+  z-index: 10;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .header { padding: 12px 16px; }
+  .main { padding: 16px; }
+  .card { padding: 18px; }
+  .form-row { grid-template-columns: 1fr; }
+  .doc-content { padding: 20px 24px; }
+  .field-toolbar { justify-content: center; }
+}
+
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+
+<script type="text/babel" data-presets="env,react">
+const { useState, useEffect, useRef, useMemo, useCallback, Fragment } = React;
+const h = React.createElement;
+
+// ============ Constants ============
+const SUPABASE_URL = 'https://ivbubhfkavaputcgovpk.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2YnViaGZrYXZhcHV0Y2dvdnBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2OTA5NzYsImV4cCI6MjA5NTI2Njk3Nn0.CtDl9Svev0kne1dgHFs0mNOFzzNzOMLHWd6GZilEyj4';
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const FIELD_TYPES = [
+  { id: 'signature', label: '✍️ 서명', icon: '✍️', width: 160, height: 60 },
+  { id: 'date', label: '📅 날짜', icon: '📅', width: 130, height: 32 },
+  { id: 'name', label: '👤 이름', icon: '👤', width: 140, height: 32 },
+  { id: 'text', label: '📝 텍스트', icon: '📝', width: 180, height: 32 },
+];
+
+const STATUS_LABELS = {
+  sent: '📤 발송됨',
+  viewed: '👁 열람됨',
+  signed: '✅ 서명 완료',
+  expired: '⏰ 만료됨',
+  cancelled: '❌ 취소됨',
+};
+
+// ============ Utilities ============
+const uuid = () => {
+  if (crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9);
+};
+
+const generateToken = () => {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let token = '';
+  for (let i = 0; i < 32; i++) token += chars[Math.floor(Math.random() * chars.length)];
+  return token;
+};
+
+const fmtDate = (iso) => {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  const now = new Date();
+  const diff = (now - d) / 1000;
+  if (diff < 60) return '방금';
+  if (diff < 3600) return Math.floor(diff/60) + '분 전';
+  if (diff < 86400) return Math.floor(diff/3600) + '시간 전';
+  if (diff < 86400 * 7) return Math.floor(diff/86400) + '일 전';
+  return d.toLocaleDateString('ko-KR', { year: '2-digit', month: 'short', day: 'numeric' });
+};
+
+const getUrlParam = (key) => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get(key);
+};
+
+// Toast
+let toastTimer = null;
+function showToast(msg) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.remove(), 2500);
+}
+
+// ============ Signature Pad Component ============
+function SignaturePad({ onSave, onCancel, initialData }) {
+  const canvasRef = useRef(null);
+  const [drawing, setDrawing] = useState(false);
+  const [hasSignature, setHasSignature] = useState(false);
+  
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    // 캔버스 크기 설정 (고해상도)
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * 2;
+    canvas.height = rect.height * 2;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(2, 2);
+    ctx.strokeStyle = '#1A1F26';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    // 이전 서명 로드
+    if (initialData) {
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, rect.width, rect.height);
+        setHasSignature(true);
+      };
+      img.src = initialData;
+    }
+  }, [initialData]);
+  
+  const getPos = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+    return { x, y };
+  };
+  
+  const start = (e) => {
+    e.preventDefault();
+    setDrawing(true);
+    const pos = getPos(e);
+    const ctx = canvasRef.current.getContext('2d');
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+  };
+  
+  const draw = (e) => {
+    if (!drawing) return;
+    e.preventDefault();
+    const pos = getPos(e);
+    const ctx = canvasRef.current.getContext('2d');
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    setHasSignature(true);
+  };
+  
+  const end = () => {
+    setDrawing(false);
+  };
+  
+  const clear = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasSignature(false);
+  };
+  
+  const save = () => {
+    if (!hasSignature) return alert('서명을 그려주세요');
+    const data = canvasRef.current.toDataURL('image/png');
+    onSave(data);
+  };
+  
+  return h('div', { className: 'signature-pad-container' },
+    h('canvas', {
+      ref: canvasRef,
+      className: 'signature-pad',
+      onMouseDown: start, onMouseMove: draw, onMouseUp: end, onMouseLeave: end,
+      onTouchStart: start, onTouchMove: draw, onTouchEnd: end,
+    }),
+    h('div', { className: 'signature-actions' },
+      h('button', { className: 'btn-ghost', onClick: clear }, '🗑 지우기'),
+      onCancel ? h('button', { className: 'btn-ghost', onClick: onCancel }, '취소') : null,
+      h('button', { className: 'btn-primary', onClick: save, disabled: !hasSignature }, '✅ 서명 완료'),
+    ),
+  );
+}
+
+// ============ Auth ============
+function useAuth() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session?.user || null);
+      setLoading(false);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_, session) => {
+      setUser(session?.user || null);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+  
+  return { user, loading };
+}
+
+function LoginModal({ onClose }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSignup, setIsSignup] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  
+  const handleSubmit = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      if (isSignup) {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        alert('가입 완료! 이메일 확인 후 로그인해주세요.');
+        setIsSignup(false);
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        onClose();
+      }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  return h('div', { className: 'modal-backdrop', onClick: onClose },
+    h('div', { className: 'modal', onClick: (e) => e.stopPropagation() },
+      h('div', { className: 'modal-header' },
+        h('div', { className: 'modal-title' }, isSignup ? '가입' : '로그인'),
+        h('button', { className: 'modal-close', onClick: onClose }, '×'),
+      ),
+      h('div', { className: 'modal-body' },
+        h('div', { className: 'form-row col-1' },
+          h('label', { className: 'field-label' }, '이메일'),
+          h('input', { 
+            className: 'field-input', type: 'email',
+            value: email, onChange: (e) => setEmail(e.target.value),
+            placeholder: 'you@example.com',
+          }),
+        ),
+        h('div', { className: 'form-row col-1' },
+          h('label', { className: 'field-label' }, '비밀번호'),
+          h('input', { 
+            className: 'field-input', type: 'password',
+            value: password, onChange: (e) => setPassword(e.target.value),
+            placeholder: '6자 이상',
+          }),
+        ),
+        error ? h('div', { style: { color: 'var(--error)', fontSize: 12, marginTop: 8 } }, error) : null,
+        h('div', { style: { fontSize: 12, marginTop: 12 } },
+          h('a', { 
+            href: '#', 
+            onClick: (e) => { e.preventDefault(); setIsSignup(!isSignup); },
+            style: { color: 'var(--primary)' } 
+          }, isSignup ? '← 로그인' : '가입하기 →'),
+        ),
+      ),
+      h('div', { className: 'modal-footer' },
+        h('button', { 
+          className: 'btn-primary', onClick: handleSubmit, disabled: loading || !email || !password,
+        }, loading ? '처리 중...' : (isSignup ? '가입' : '로그인')),
+      ),
+    ),
+  );
+}
+
+// ============ Sender: Contract Editor ============
+function ContractEditor({ user, onDone }) {
+  const [step, setStep] = useState(1); // 1: upload, 2: fields, 3: send
+  const [file, setFile] = useState(null);
+  const [html, setHtml] = useState('');
+  const [title, setTitle] = useState('');
+  const [message, setMessage] = useState('');
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [recipientName, setRecipientName] = useState('');
+  const [fields, setFields] = useState([]);
+  const [selectedFieldId, setSelectedFieldId] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [addingField, setAddingField] = useState(null); // field type to add
+  const fileInputRef = useRef(null);
+  const docRef = useRef(null);
+  
+  const handleFile = async (file) => {
+    if (!file) return;
+    if (!file.name.match(/\.(docx?|html?|txt)$/i)) {
+      alert('.docx, .doc, .html, .txt 파일만 지원합니다');
+      return;
+    }
+    setLoading(true);
+    setFile(file);
+    setTitle(file.name.replace(/\.[^.]+$/, ''));
+    try {
+      const buffer = await file.arrayBuffer();
+      if (file.name.match(/\.docx$/i)) {
+        const result = await window.mammoth.convertToHtml({ arrayBuffer: buffer });
+        setHtml(result.value);
+      } else if (file.name.match(/\.html?$/i)) {
+        const text = new TextDecoder().decode(buffer);
+        setHtml(text);
+      } else if (file.name.match(/\.txt$/i)) {
+        const text = new TextDecoder().decode(buffer);
+        setHtml('<pre style="white-space:pre-wrap;font-family:inherit">' + 
+          text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>');
+      }
+      setStep(2);
+    } catch (e) {
+      alert('파일 처리 실패: ' + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    handleFile(file);
+  };
+  
+  const handleDocClick = (e) => {
+    if (!addingField) return;
+    const rect = docRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top + docRef.current.scrollTop;
+    const fieldType = FIELD_TYPES.find(f => f.id === addingField);
+    const newField = {
+      id: uuid(),
+      type: addingField,
+      x: x - fieldType.width / 2,
+      y: y - fieldType.height / 2,
+      width: fieldType.width,
+      height: fieldType.height,
+      value: null,
+    };
+    setFields([...fields, newField]);
+    setSelectedFieldId(newField.id);
+    setAddingField(null);
+  };
+  
+  const removeField = (id) => {
+    setFields(fields.filter(f => f.id !== id));
+    setSelectedFieldId(null);
+  };
+  
+  const startFieldDrag = (e, field) => {
+    e.stopPropagation();
+    if (e.target.classList.contains('field-remove')) return;
+    setSelectedFieldId(field.id);
+    const startX = e.clientX, startY = e.clientY;
+    const origX = field.x, origY = field.y;
+    
+    const onMove = (ev) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      setFields(fs => fs.map(f => 
+        f.id === field.id ? { ...f, x: origX + dx, y: origY + dy } : f
+      ));
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+  
+  const handleSend = async () => {
+    if (!recipientEmail) return alert('수신자 이메일을 입력해주세요');
+    if (fields.filter(f => f.type === 'signature').length === 0) {
+      if (!confirm('서명란이 없습니다. 그래도 발송할까요?')) return;
+    }
+    setLoading(true);
+    try {
+      const token = generateToken();
+      const { data, error } = await supabase.from('contracts').insert({
+        sender_email: user.email,
+        sender_name: user.email.split('@')[0],
+        recipient_email: recipientEmail,
+        recipient_name: recipientName || null,
+        title: title || '무제 계약',
+        message: message || null,
+        original_html: html,
+        fields: fields,
+        sign_token: token,
+        status: 'sent',
+        sent_at: new Date().toISOString(),
+        user_id: user.id,
+      }).select().single();
+      
+      if (error) throw error;
+      
+      // mailto: 링크 생성
+      const signUrl = window.location.origin + window.location.pathname + '?sign=' + token;
+      const subject = encodeURIComponent('[말계약] ' + (title || '서명 요청'));
+      const body = encodeURIComponent(
+        (recipientName || '안녕하세요') + '님,\n\n' +
+        (user.email.split('@')[0]) + '님이 계약서 서명을 요청했습니다.\n\n' +
+        (message ? message + '\n\n' : '') +
+        '서명 링크: ' + signUrl + '\n\n' +
+        '(링크는 30일간 유효합니다)\n\n' +
+        '— 말계약 (sapfiori.co.kr)'
+      );
+      window.location.href = 'mailto:' + recipientEmail + '?subject=' + subject + '&body=' + body;
+      
+      showToast('계약 발송 완료 · 메일 클라이언트를 확인하세요');
+      onDone();
+    } catch (e) {
+      alert('발송 실패: ' + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Step 1: Upload
+  if (step === 1) {
+    return h('div', { className: 'card' },
+      h('div', { className: 'card-title' }, '📄 계약서 업로드'),
+      h('div', { className: 'card-desc' }, 'Word (.docx), HTML, 또는 텍스트 파일'),
+      h('div', { 
+        className: 'upload-box' + (dragOver ? ' dragover' : ''),
+        onClick: () => fileInputRef.current?.click(),
+        onDragOver: (e) => { e.preventDefault(); setDragOver(true); },
+        onDragLeave: () => setDragOver(false),
+        onDrop: handleDrop,
+      },
+        h('div', { className: 'upload-icon' }, '📤'),
+        h('div', { className: 'upload-title' }, '파일 드래그 또는 클릭'),
+        h('div', { className: 'upload-hint' }, '.docx, .doc, .html, .txt · 최대 10MB'),
+      ),
+      h('input', {
+        type: 'file', ref: fileInputRef,
+        accept: '.docx,.doc,.html,.htm,.txt',
+        style: { display: 'none' },
+        onChange: (e) => handleFile(e.target.files[0]),
+      }),
+    );
+  }
+  
+  // Step 2: Field placement
+  if (step === 2) {
+    return h(Fragment, null,
+      h('div', { className: 'card' },
+        h('div', { className: 'card-title' }, '📌 필드 배치'),
+        h('div', { className: 'card-desc' }, 
+          addingField 
+            ? '📍 문서를 클릭해서 ' + FIELD_TYPES.find(f => f.id === addingField)?.label + ' 배치 위치 선택'
+            : '아래 버튼 클릭 → 문서 원하는 위치 클릭'
+        ),
+        h('div', { className: 'field-toolbar' },
+          FIELD_TYPES.map(t =>
+            h('button', {
+              key: t.id,
+              className: 'field-add-btn',
+              onClick: () => setAddingField(addingField === t.id ? null : t.id),
+              style: addingField === t.id ? { 
+                background: 'var(--primary)', color: 'white', borderColor: 'var(--primary)' 
+              } : {},
+            }, '+ ', t.label)
+          ),
+        ),
+        h('div', { 
+          ref: docRef,
+          className: 'doc-container', 
+          style: { cursor: addingField ? 'crosshair' : 'default' },
+          onClick: handleDocClick,
+        },
+          h('div', { 
+            className: 'doc-content',
+            dangerouslySetInnerHTML: { __html: html } 
+          }),
+          fields.map(f => {
+            const type = FIELD_TYPES.find(t => t.id === f.type);
+            return h('div', {
+              key: f.id,
+              className: 'field-overlay' + (f.type === 'signature' ? ' signature' : '') + 
+                (selectedFieldId === f.id ? ' selected' : ''),
+              style: {
+                left: f.x, top: f.y,
+                width: f.width, height: f.height,
+              },
+              onMouseDown: (e) => startFieldDrag(e, f),
+              onClick: (e) => e.stopPropagation(),
+            },
+              type.icon + ' ' + type.label.split(' ')[1],
+              h('button', {
+                className: 'field-remove',
+                onClick: (e) => { e.stopPropagation(); removeField(f.id); },
+              }, '×'),
+            );
+          }),
+        ),
+      ),
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', marginTop: 16 } },
+        h('button', { className: 'btn-ghost', onClick: () => setStep(1) }, '← 다시 업로드'),
+        h('button', { 
+          className: 'btn-primary', 
+          onClick: () => setStep(3),
+        }, '다음 → 수신자 정보'),
+      ),
+    );
+  }
+  
+  // Step 3: Recipient & Send
+  return h(Fragment, null,
+    h('div', { className: 'card' },
+      h('div', { className: 'card-title' }, '📧 수신자 정보'),
+      h('div', { className: 'form-row col-1' },
+        h('label', { className: 'field-label' }, '계약 제목 ', h('span', { className: 'field-required' }, '*')),
+        h('input', {
+          className: 'field-input',
+          value: title, onChange: (e) => setTitle(e.target.value),
+          placeholder: '예: 프리랜서 개발 용역 계약서',
+        }),
+      ),
+      h('div', { className: 'form-row' },
+        h('div', null,
+          h('label', { className: 'field-label' }, '수신자 이메일 ', h('span', { className: 'field-required' }, '*')),
+          h('input', {
+            className: 'field-input', type: 'email',
+            value: recipientEmail, onChange: (e) => setRecipientEmail(e.target.value),
+            placeholder: 'recipient@example.com',
+          }),
+        ),
+        h('div', null,
+          h('label', { className: 'field-label' }, '수신자 이름'),
+          h('input', {
+            className: 'field-input',
+            value: recipientName, onChange: (e) => setRecipientName(e.target.value),
+            placeholder: '홍길동',
+          }),
+        ),
+      ),
+      h('div', { className: 'form-row col-1' },
+        h('label', { className: 'field-label' }, '메시지 (선택)'),
+        h('textarea', {
+          className: 'field-textarea',
+          value: message, onChange: (e) => setMessage(e.target.value),
+          placeholder: '수신자에게 전달할 메시지...',
+          rows: 3,
+        }),
+      ),
+      h('div', { style: { background: 'var(--bg)', padding: 12, borderRadius: 8, fontSize: 12, marginTop: 12 } },
+        h('div', { style: { fontWeight: 700, marginBottom: 6 } }, '📋 발송 정보'),
+        h('div', null, '• 서명 필드: ', fields.filter(f => f.type === 'signature').length, '개'),
+        h('div', null, '• 총 필드: ', fields.length, '개'),
+        h('div', null, '• 링크 유효 기간: 30일'),
+        h('div', null, '• 발송 방법: 기본 메일 앱 자동 열림'),
+      ),
+    ),
+    h('div', { style: { display: 'flex', justifyContent: 'space-between', marginTop: 16 } },
+      h('button', { className: 'btn-ghost', onClick: () => setStep(2) }, '← 필드 수정'),
+      h('button', { 
+        className: 'btn-primary', 
+        onClick: handleSend,
+        disabled: loading || !title || !recipientEmail,
+      }, loading ? '전송 중...' : '📤 계약 발송'),
+    ),
+  );
+}
+
+// ============ Sender: Contract List ============
+function ContractList({ user, onNew, onView }) {
+  const [contracts, setContracts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  const load = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('contracts')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    if (!error) setContracts(data || []);
+    setLoading(false);
+  };
+  
+  useEffect(() => { load(); }, [user.id]);
+  
+  // Realtime subscription
+  useEffect(() => {
+    const channel = supabase.channel('contracts-' + user.id)
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'contracts', filter: 'user_id=eq.' + user.id },
+        (payload) => {
+          if (payload.eventType === 'UPDATE') {
+            setContracts(cs => cs.map(c => c.id === payload.new.id ? payload.new : c));
+          }
+        }
+      )
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [user.id]);
+  
+  return h(Fragment, null,
+    h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 } },
+      h('h2', { style: { fontSize: 18, fontWeight: 700 } }, '📋 내 계약'),
+      h('button', { className: 'btn-primary', onClick: onNew }, '+ 새 계약'),
+    ),
+    loading ? h('div', { className: 'empty' }, '로딩 중...')
+    : contracts.length === 0 ? h('div', { className: 'card empty' },
+        h('div', { className: 'empty-icon' }, '📄'),
+        h('div', { className: 'empty-title' }, '아직 계약이 없습니다'),
+        h('div', { className: 'empty-desc' }, 'Word 문서를 업로드해서 첫 계약을 만들어보세요'),
+        h('button', { className: 'btn-primary', onClick: onNew }, '+ 새 계약 만들기'),
+      )
+    : h('div', { className: 'contract-list' },
+        contracts.map(c =>
+          h('div', { 
+            key: c.id, className: 'contract-item',
+            onClick: () => onView(c),
+          },
+            h('div', { className: 'contract-info' },
+              h('div', { className: 'contract-title' }, c.title),
+              h('div', { className: 'contract-meta' },
+                c.recipient_email, ' · ', fmtDate(c.created_at),
+              ),
+            ),
+            h('div', { className: 'status-badge status-' + c.status }, 
+              STATUS_LABELS[c.status] || c.status
+            ),
+          )
+        ),
+      ),
+  );
+}
+
+// ============ Sender: Contract Detail ============
+function ContractDetail({ contract, onBack, onRefresh }) {
+  const [c, setC] = useState(contract);
+  
+  useEffect(() => {
+    const channel = supabase.channel('contract-' + c.id)
+      .on('postgres_changes', 
+        { event: 'UPDATE', schema: 'public', table: 'contracts', filter: 'id=eq.' + c.id },
+        (payload) => setC(payload.new)
+      )
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [c.id]);
+  
+  const copyLink = () => {
+    const url = window.location.origin + window.location.pathname + '?sign=' + c.sign_token;
+    navigator.clipboard.writeText(url);
+    showToast('링크 복사됨');
+  };
+  
+  const resendMail = () => {
+    const signUrl = window.location.origin + window.location.pathname + '?sign=' + c.sign_token;
+    const subject = encodeURIComponent('[말계약] ' + c.title + ' - 서명 요청 재발송');
+    const body = encodeURIComponent(
+      (c.recipient_name || '안녕하세요') + '님,\n\n' +
+      '서명 요청을 다시 보냅니다.\n\n' +
+      (c.message ? c.message + '\n\n' : '') +
+      '서명 링크: ' + signUrl + '\n\n' +
+      '— 말계약'
+    );
+    window.location.href = 'mailto:' + c.recipient_email + '?subject=' + subject + '&body=' + body;
+  };
+  
+  const downloadPDF = () => {
+    const container = document.getElementById('contract-detail-content');
+    if (!container) return;
+    window.html2pdf().set({
+      margin: 10,
+      filename: c.title + '.pdf',
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    }).from(container).save();
+  };
+  
+  return h(Fragment, null,
+    h('div', { style: { marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
+      h('button', { className: 'btn-ghost', onClick: onBack }, '← 목록'),
+      h('button', { className: 'btn-ghost', onClick: copyLink }, '🔗 링크 복사'),
+      c.status !== 'signed' ? h('button', { className: 'btn-ghost', onClick: resendMail }, '📧 메일 재발송') : null,
+      c.status === 'signed' ? h('button', { className: 'btn-primary', onClick: downloadPDF }, '📄 PDF 다운로드') : null,
+    ),
+    h('div', { className: 'card' },
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 } },
+        h('div', null,
+          h('div', { style: { fontSize: 18, fontWeight: 700, marginBottom: 4 } }, c.title),
+          h('div', { style: { fontSize: 12, color: 'var(--text-sub)' } },
+            '수신자: ', c.recipient_name || c.recipient_email, ' · ',
+            '발송: ', fmtDate(c.sent_at || c.created_at),
+            c.viewed_at ? ' · 열람: ' + fmtDate(c.viewed_at) : '',
+            c.signed_at ? ' · 서명: ' + fmtDate(c.signed_at) : '',
+          ),
+        ),
+        h('div', { className: 'status-badge status-' + c.status }, STATUS_LABELS[c.status]),
+      ),
+    ),
+    h('div', { className: 'card' },
+      h('div', { 
+        id: 'contract-detail-content',
+        className: 'doc-container', style: { position: 'relative' } 
+      },
+        h('div', { 
+          className: 'doc-content',
+          dangerouslySetInnerHTML: { __html: c.signed_html || c.original_html } 
+        }),
+        // 필드 미리보기 (서명 안 됨)
+        !c.signed_html && (c.fields || []).map(f => {
+          const type = FIELD_TYPES.find(t => t.id === f.type);
+          const filled = f.value != null;
+          return h('div', {
+            key: f.id,
+            className: 'field-overlay' + (f.type === 'signature' ? ' signature' : '') + (filled ? ' filled' : ''),
+            style: { left: f.x, top: f.y, width: f.width, height: f.height, cursor: 'default' },
+          },
+            f.type === 'signature' && filled 
+              ? h('img', { src: f.value, alt: '서명' })
+              : (filled ? f.value : type.icon + ' ' + type.label.split(' ')[1])
+          );
+        }),
+      ),
+    ),
+  );
+}
+
+// ============ Recipient: Sign View ============
+function SignView({ token }) {
+  const [contract, setContract] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [fieldValues, setFieldValues] = useState({});
+  const [signingFieldId, setSigningFieldId] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState(false);
+  const docRef = useRef(null);
+  
+  useEffect(() => {
+    load();
+  }, [token]);
+  
+  const load = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('contracts')
+        .select('*')
+        .eq('sign_token', token)
+        .single();
+      if (error) throw error;
+      if (!data) throw new Error('유효하지 않은 링크입니다');
+      if (data.status === 'signed') throw new Error('이미 서명 완료된 계약입니다');
+      if (data.status === 'expired' || (data.expires_at && new Date(data.expires_at) < new Date())) {
+        throw new Error('만료된 링크입니다');
+      }
+      setContract(data);
+      
+      // 첫 열람 표시
+      if (data.status === 'sent') {
+        await supabase.from('contracts').update({
+          status: 'viewed',
+          viewed_at: new Date().toISOString(),
+        }).eq('id', data.id);
+      }
+      
+      // 기존 값 로드
+      const values = {};
+      (data.fields || []).forEach(f => {
+        if (f.value != null) values[f.id] = f.value;
+      });
+      setFieldValues(values);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const setFieldValue = (id, value) => {
+    setFieldValues(v => ({ ...v, [id]: value }));
+  };
+  
+  const handleSubmit = async () => {
+    const required = (contract.fields || []).filter(f => f.type === 'signature');
+    for (const f of required) {
+      if (!fieldValues[f.id]) return alert('서명을 완료해주세요');
+    }
+    
+    setSubmitting(true);
+    try {
+      // 필드에 값 채우기
+      const filledFields = (contract.fields || []).map(f => ({
+        ...f, value: fieldValues[f.id] || null,
+      }));
+      
+      // 서명 이미지 (첫 서명)
+      const firstSig = filledFields.find(f => f.type === 'signature');
+      const sigData = firstSig?.value;
+      
+      // 완성 HTML 생성 (필드를 HTML로 삽입)
+      const signedHtml = buildSignedHtml(contract.original_html, filledFields);
+      
+      const { error } = await supabase.from('contracts').update({
+        status: 'signed',
+        signed_at: new Date().toISOString(),
+        fields: filledFields,
+        signed_html: signedHtml,
+        signature_data: sigData,
+        user_agent: navigator.userAgent,
+      }).eq('id', contract.id);
+      
+      if (error) throw error;
+      setDone(true);
+    } catch (e) {
+      alert('서명 저장 실패: ' + e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  
+  const buildSignedHtml = (originalHtml, fields) => {
+    // 원본 HTML은 그대로, 서명 데이터는 fields에서
+    // signed_html 은 렌더링 시 fields 오버레이로 처리
+    return originalHtml;
+  };
+  
+  if (loading) return h('div', { className: 'main', style: { textAlign: 'center', padding: 60 } }, '로딩 중...');
+  if (error) return h('div', { className: 'main' },
+    h('div', { className: 'card empty' },
+      h('div', { className: 'empty-icon' }, '❌'),
+      h('div', { className: 'empty-title' }, '오류'),
+      h('div', { className: 'empty-desc' }, error),
+    ),
+  );
+  
+  if (done) return h('div', { className: 'main' },
+    h('div', { className: 'card empty' },
+      h('div', { className: 'empty-icon' }, '✅'),
+      h('div', { className: 'empty-title' }, '서명 완료!'),
+      h('div', { className: 'empty-desc' }, 
+        contract.sender_name + '님에게 서명 완료가 통보됩니다. 브라우저 창을 닫으셔도 됩니다.'
+      ),
+    ),
+  );
+  
+  const requiredFields = (contract.fields || []).filter(f => f.type === 'signature');
+  const allSigned = requiredFields.every(f => fieldValues[f.id]);
+  
+  return h('div', { className: 'main sign-view' },
+    h('div', { className: 'sign-header' },
+      h('div', { className: 'sign-header-title' }, '📝 ', contract.title),
+      h('div', { className: 'sign-header-meta' },
+        contract.sender_name + ' (' + contract.sender_email + ') 님이 서명을 요청했습니다',
+      ),
+      contract.message ? h('div', { 
+        style: { 
+          marginTop: 12, padding: 10, background: 'var(--bg)', borderRadius: 6,
+          fontSize: 13, color: 'var(--text-sub)' 
+        } 
+      }, '💬 ', contract.message) : null,
+    ),
+    
+    h('div', { 
+      ref: docRef,
+      className: 'doc-container', style: { position: 'relative' } 
+    },
+      h('div', { 
+        className: 'doc-content',
+        dangerouslySetInnerHTML: { __html: contract.original_html } 
+      }),
+      (contract.fields || []).map(f => {
+        const type = FIELD_TYPES.find(t => t.id === f.type);
+        const value = fieldValues[f.id];
+        const filled = value != null && value !== '';
+        return h('div', {
+          key: f.id,
+          className: 'field-overlay' + (f.type === 'signature' ? ' signature' : '') + (filled ? ' filled' : ''),
+          style: { left: f.x, top: f.y, width: f.width, height: f.height },
+          onClick: () => {
+            if (f.type === 'signature') {
+              setSigningFieldId(f.id);
+            } else if (f.type === 'date') {
+              setFieldValue(f.id, new Date().toLocaleDateString('ko-KR'));
+            } else if (f.type === 'name' || f.type === 'text') {
+              const val = prompt(type.label + ' 입력', value || '');
+              if (val !== null) setFieldValue(f.id, val);
+            }
+          },
+        },
+          f.type === 'signature' && filled 
+            ? h('img', { src: value, style: { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }, alt: '서명' })
+            : (filled ? value : type.icon + ' ' + type.label.split(' ')[1] + ' 클릭')
+        );
+      }),
+    ),
+    
+    h('div', { className: 'sign-footer' },
+      h('div', { style: { fontSize: 12, color: 'var(--text-sub)' } },
+        '📌 서명 ' + requiredFields.filter(f => fieldValues[f.id]).length + '/' + requiredFields.length,
+      ),
+      h('button', { 
+        className: 'btn-primary', 
+        onClick: handleSubmit, 
+        disabled: submitting || !allSigned,
+      }, submitting ? '저장 중...' : '✅ 서명 완료'),
+    ),
+    
+    // 서명 모달
+    signingFieldId ? h('div', { className: 'modal-backdrop' },
+      h('div', { className: 'modal', style: { maxWidth: 500 } },
+        h('div', { className: 'modal-header' },
+          h('div', { className: 'modal-title' }, '✍️ 서명'),
+          h('button', { className: 'modal-close', onClick: () => setSigningFieldId(null) }, '×'),
+        ),
+        h('div', { className: 'modal-body' },
+          h('div', { style: { fontSize: 12, color: 'var(--text-sub)', marginBottom: 10 } },
+            '마우스 또는 손가락으로 서명해주세요',
+          ),
+          h(SignaturePad, {
+            initialData: fieldValues[signingFieldId],
+            onSave: (data) => {
+              setFieldValue(signingFieldId, data);
+              setSigningFieldId(null);
+            },
+            onCancel: () => setSigningFieldId(null),
+          }),
+        ),
+      ),
+    ) : null,
+  );
+}
+
+// ============ Main App ============
+function App() {
+  const { user, loading: authLoading } = useAuth();
+  const [showLogin, setShowLogin] = useState(false);
+  const [view, setView] = useState('list'); // list | new | detail
+  const [selectedContract, setSelectedContract] = useState(null);
+  
+  // URL 파라미터로 수신자 뷰 진입
+  const signToken = getUrlParam('sign');
+  
+  if (signToken) {
+    return h(Fragment, null,
+      h('div', { className: 'app' },
+        h('div', { className: 'header' },
+          h('div', { className: 'logo' },
+            '📝 말계약',
+            h('span', { className: 'logo-badge' }, 'SIGN'),
+          ),
+        ),
+        h(SignView, { token: signToken }),
+      ),
+    );
+  }
+  
+  if (authLoading) return h('div', { style: { padding: 40, textAlign: 'center' } }, '로딩 중...');
+  
+  return h('div', { className: 'app' },
+    h('div', { className: 'header' },
+      h('div', { className: 'logo' },
+        '📝 말계약',
+        h('span', { className: 'logo-badge' }, 'v2 BETA'),
+      ),
+      h('div', { className: 'header-actions' },
+        user ? h(Fragment, null,
+          h('span', { style: { fontSize: 12, opacity: 0.9 } }, user.email),
+          h('button', { 
+            className: 'header-btn', 
+            onClick: async () => { await supabase.auth.signOut(); },
+          }, '로그아웃'),
+        ) : h('button', { 
+          className: 'header-btn', onClick: () => setShowLogin(true),
+        }, '로그인'),
+      ),
+    ),
+    
+    h('div', { className: 'main' },
+      !user ? h('div', { className: 'card empty' },
+        h('div', { className: 'empty-icon' }, '🔐'),
+        h('div', { className: 'empty-title' }, '로그인이 필요합니다'),
+        h('div', { className: 'empty-desc' }, '계약을 관리하려면 로그인해주세요'),
+        h('button', { className: 'btn-primary', onClick: () => setShowLogin(true) }, '로그인'),
+      )
+      : view === 'list' ? h(ContractList, { 
+          user,
+          onNew: () => setView('new'),
+          onView: (c) => { setSelectedContract(c); setView('detail'); },
+        })
+      : view === 'new' ? h(ContractEditor, { 
+          user,
+          onDone: () => setView('list'),
+        })
+      : view === 'detail' && selectedContract ? h(ContractDetail, {
+          contract: selectedContract,
+          onBack: () => setView('list'),
+        })
+      : null,
+    ),
+    
+    showLogin ? h(LoginModal, { onClose: () => setShowLogin(false) }) : null,
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+</script>
+</body>
+</html>
