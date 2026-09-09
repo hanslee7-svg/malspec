@@ -508,6 +508,73 @@ textarea { resize: vertical; }
   .sign-header-inner { padding: 10px 14px; }
 }
 
+/* 인증 화면 */
+.auth-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 70vh;
+  padding-top: 0 !important;
+}
+
+.auth-card {
+  background: white;
+  border-radius: 16px;
+  padding: 40px 32px;
+  max-width: 440px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+  border-top: 4px solid var(--primary);
+}
+
+.auth-icon {
+  font-size: 44px;
+  margin-bottom: 12px;
+}
+
+.auth-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.auth-contract-title {
+  font-size: 15px;
+  color: var(--primary-dark);
+  font-weight: 600;
+  padding: 10px 14px;
+  background: var(--primary-light);
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+.auth-desc {
+  font-size: 13px;
+  color: var(--text-sub);
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+.auth-hint {
+  font-size: 11px;
+  color: var(--text-sub);
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: var(--bg);
+  border-radius: 6px;
+}
+
+.auth-error {
+  color: var(--error);
+  font-size: 12px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #FCE4E4;
+  border-radius: 6px;
+  border: 1px solid #F5C6C6;
+}
+
 /* Mobile */
 @media (max-width: 768px) {
   .header { padding: 12px 16px; }
@@ -988,6 +1055,8 @@ function ContractEditor({ user, onDone }) {
         '👉 아래 링크를 클릭하여 서명해주세요\n\n' +
         signUrl + '\n\n' +
         '━━━━━━━━━━━━━━━━━━━━━\n\n' +
+        '🔒 보안 안내:\n' +
+        '링크 접속 시 발신자 이메일(' + user.email + ')을 입력해야 계약서를 볼 수 있습니다.\n\n' +
         '※ 링크가 클릭되지 않으면 위 주소를 복사해서 브라우저 주소창에 붙여넣기 하세요.\n' +
         '※ 링크는 30일간 유효합니다.\n\n' +
         '— 말계약 (sapfiori.co.kr)'
@@ -1432,12 +1501,43 @@ function SignView({ token }) {
   const [signingFieldId, setSigningFieldId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
-  const [imgLoaded, setImgLoaded] = useState(0); // 이미지 로드 카운터 (강제 리렌더)
+  const [imgLoaded, setImgLoaded] = useState(0);
+  const [verified, setVerified] = useState(false);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [authAttempts, setAuthAttempts] = useState(0);
   const docRef = useRef(null);
   
   useEffect(() => {
     load();
   }, [token]);
+  
+  // 이전 인증 확인 (세션)
+  useEffect(() => {
+    if (!contract) return;
+    const key = 'contract-verified-' + contract.id;
+    if (sessionStorage.getItem(key) === 'true') {
+      setVerified(true);
+    }
+  }, [contract]);
+  
+  const verify = () => {
+    if (!contract) return;
+    const input = authEmail.toLowerCase().trim();
+    const expected = (contract.sender_email || '').toLowerCase().trim();
+    if (!input) {
+      setAuthError('이메일을 입력해주세요');
+      return;
+    }
+    if (input === expected) {
+      sessionStorage.setItem('contract-verified-' + contract.id, 'true');
+      setVerified(true);
+      setAuthError('');
+    } else {
+      setAuthAttempts(a => a + 1);
+      setAuthError('발신자 이메일이 일치하지 않습니다 (' + (authAttempts + 1) + '회)');
+    }
+  };
   
   // 이미지 로드 감지 → 필드 위치 재계산 (CSS % 자동 재계산 트리거)
   useEffect(() => {
@@ -1577,6 +1677,55 @@ function SignView({ token }) {
   
   const requiredFields = (contract.fields || []).filter(f => f.type === 'signature');
   const allSigned = requiredFields.every(f => fieldValues[f.id]);
+  
+  // 인증 안 되면 인증 화면만 표시
+  if (!verified) {
+    // 발신자 이메일 힌트 (마스킹): j***@n***.com
+    const senderEmail = contract.sender_email || '';
+    const [localPart, domain] = senderEmail.split('@');
+    const maskedHint = localPart && domain 
+      ? localPart[0] + '*'.repeat(Math.max(1, localPart.length - 1)) + '@' + 
+        domain[0] + '*'.repeat(Math.max(1, domain.split('.')[0].length - 1)) + 
+        '.' + domain.split('.').slice(1).join('.')
+      : '';
+    
+    return h('div', { className: 'main sign-view auth-view' },
+      h('div', { className: 'auth-card' },
+        h('div', { className: 'auth-icon' }, '🔒'),
+        h('div', { className: 'auth-title' }, '보안 확인'),
+        h('div', { className: 'auth-contract-title' }, contract.title),
+        h('div', { className: 'auth-desc' }, 
+          '이 계약서는 보안으로 보호되어 있습니다.',
+          h('br'),
+          '계약을 확인하려면 ',
+          h('strong', null, '발신자 이메일 주소'),
+          '를 입력해주세요.',
+        ),
+        h('input', { 
+          type: 'email',
+          className: 'field-input',
+          value: authEmail,
+          onChange: (e) => setAuthEmail(e.target.value),
+          onKeyDown: (e) => { if (e.key === 'Enter') verify(); },
+          placeholder: 'sender@example.com',
+          autoFocus: true,
+          style: { marginBottom: 8 },
+        }),
+        maskedHint ? h('div', { className: 'auth-hint' }, 
+          '💡 힌트: ', h('code', null, maskedHint),
+        ) : null,
+        authError ? h('div', { className: 'auth-error' }, '❌ ', authError) : null,
+        h('button', { 
+          className: 'btn-primary',
+          onClick: verify,
+          style: { width: '100%', marginTop: 16, padding: '12px', fontSize: 14 },
+        }, '🔓 확인'),
+        h('div', { style: { fontSize: 10, color: 'var(--text-sub)', marginTop: 16 } },
+          '※ 이 계약을 열람할 수 있는 사람만 발신자 이메일을 알 수 있습니다.',
+        ),
+      ),
+    );
+  }
   
   return h('div', { className: 'main sign-view' },
     h('div', { className: 'sign-header' },
