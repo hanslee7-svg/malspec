@@ -921,9 +921,13 @@ function ContractEditor({ user, onDone }) {
       const body = encodeURIComponent(
         (recipientName || '안녕하세요') + '님,\n\n' +
         (user.email.split('@')[0]) + '님이 계약서 서명을 요청했습니다.\n\n' +
-        (message ? message + '\n\n' : '') +
-        '서명 링크: ' + signUrl + '\n\n' +
-        '(링크는 30일간 유효합니다)\n\n' +
+        (message ? '메시지:\n' + message + '\n\n' : '') +
+        '━━━━━━━━━━━━━━━━━━━━━\n' +
+        '👉 아래 링크를 클릭하여 서명해주세요\n\n' +
+        signUrl + '\n\n' +
+        '━━━━━━━━━━━━━━━━━━━━━\n\n' +
+        '※ 링크가 클릭되지 않으면 위 주소를 복사해서 브라우저 주소창에 붙여넣기 하세요.\n' +
+        '※ 링크는 30일간 유효합니다.\n\n' +
         '— 말계약 (sapfiori.co.kr)'
       );
       window.location.href = 'mailto:' + recipientEmail + '?subject=' + subject + '&body=' + body;
@@ -1203,8 +1207,12 @@ function ContractDetail({ contract, onBack, onRefresh }) {
     const body = encodeURIComponent(
       (c.recipient_name || '안녕하세요') + '님,\n\n' +
       '서명 요청을 다시 보냅니다.\n\n' +
-      (c.message ? c.message + '\n\n' : '') +
-      '서명 링크: ' + signUrl + '\n\n' +
+      (c.message ? '메시지:\n' + c.message + '\n\n' : '') +
+      '━━━━━━━━━━━━━━━━━━━━━\n' +
+      '👉 아래 링크를 클릭하여 서명해주세요\n\n' +
+      signUrl + '\n\n' +
+      '━━━━━━━━━━━━━━━━━━━━━\n\n' +
+      '※ 링크가 클릭되지 않으면 위 주소를 복사해서 브라우저 주소창에 붙여넣기 하세요.\n\n' +
       '— 말계약'
     );
     window.location.href = 'mailto:' + c.recipient_email + '?subject=' + subject + '&body=' + body;
