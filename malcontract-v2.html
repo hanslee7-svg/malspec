@@ -491,6 +491,13 @@ textarea { resize: vertical; }
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+  if (window.pdfjsLib) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+</script>
 <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
 
 <script type="text/babel" data-presets="env,react">
@@ -759,8 +766,8 @@ function ContractEditor({ user, onDone }) {
   
   const handleFile = async (file) => {
     if (!file) return;
-    if (!file.name.match(/\.(docx?|html?|txt)$/i)) {
-      alert('.docx, .doc, .html, .txt 파일만 지원합니다');
+    if (!file.name.match(/\.(docx?|html?|txt|pdf)$/i)) {
+      alert('.docx, .doc, .html, .txt, .pdf 파일만 지원합니다');
       return;
     }
     setLoading(true);
@@ -768,8 +775,36 @@ function ContractEditor({ user, onDone }) {
     setTitle(file.name.replace(/\.[^.]+$/, ''));
     try {
       const buffer = await file.arrayBuffer();
-      if (file.name.match(/\.docx$/i)) {
-        const result = await window.mammoth.convertToHtml({ arrayBuffer: buffer });
+      
+      if (file.name.match(/\.pdf$/i)) {
+        // PDF 처리 - 각 페이지를 이미지로 변환 (원본 완벽 보존)
+        const pdf = await window.pdfjsLib.getDocument({ data: buffer }).promise;
+        let combinedHtml = '<div style="display:flex;flex-direction:column;gap:16px;">';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const viewport = page.getViewport({ scale: 2.0 });
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const ctx = canvas.getContext('2d');
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          const dataUrl = canvas.toDataURL('image/png');
+          combinedHtml += '<img src="' + dataUrl + '" style="width:100%;display:block;border:1px solid #E1E6EB;" alt="Page ' + i + '"/>';
+        }
+        combinedHtml += '</div>';
+        setHtml(combinedHtml);
+      } else if (file.name.match(/\.docx$/i)) {
+        // Word 처리 - 이미지 base64 인라인 강제
+        const result = await window.mammoth.convertToHtml({ arrayBuffer: buffer }, {
+          convertImage: window.mammoth.images.imgElement(function(image) {
+            return image.read('base64').then(function(imageBuffer) {
+              return {
+                src: 'data:' + image.contentType + ';base64,' + imageBuffer,
+                style: 'max-width:200px;vertical-align:middle;display:inline-block;'
+              };
+            });
+          })
+        });
         setHtml(result.value);
       } else if (file.name.match(/\.html?$/i)) {
         const text = new TextDecoder().decode(buffer);
@@ -892,7 +927,14 @@ function ContractEditor({ user, onDone }) {
   if (step === 1) {
     return h('div', { className: 'card' },
       h('div', { className: 'card-title' }, '📄 계약서 업로드'),
-      h('div', { className: 'card-desc' }, 'Word (.docx), HTML, 또는 텍스트 파일'),
+      h('div', { className: 'card-desc' }, 
+        h('div', { style: { marginBottom: 6 } }, 'PDF, Word (.docx), HTML, 또는 텍스트 파일'),
+        h('div', { style: { fontSize: 11, color: 'var(--warning)' } },
+          '💡 도장·이미지가 있는 계약서는 ',
+          h('strong', null, 'PDF로 변환 후 업로드'),
+          ' 하시면 원본 서식이 완벽 보존됩니다',
+        ),
+      ),
       h('div', { 
         className: 'upload-box' + (dragOver ? ' dragover' : ''),
         onClick: () => fileInputRef.current?.click(),
@@ -902,14 +944,28 @@ function ContractEditor({ user, onDone }) {
       },
         h('div', { className: 'upload-icon' }, '📤'),
         h('div', { className: 'upload-title' }, '파일 드래그 또는 클릭'),
-        h('div', { className: 'upload-hint' }, '.docx, .doc, .html, .txt · 최대 10MB'),
+        h('div', { className: 'upload-hint' }, '.pdf ⭐ · .docx · .doc · .html · .txt · 최대 10MB'),
       ),
       h('input', {
         type: 'file', ref: fileInputRef,
-        accept: '.docx,.doc,.html,.htm,.txt',
+        accept: '.pdf,.docx,.doc,.html,.htm,.txt',
         style: { display: 'none' },
         onChange: (e) => handleFile(e.target.files[0]),
       }),
+      h('div', { 
+        style: { 
+          background: 'var(--bg)', padding: 14, borderRadius: 8, 
+          marginTop: 16, fontSize: 12, color: 'var(--text-sub)' 
+        } 
+      },
+        h('div', { style: { fontWeight: 700, marginBottom: 6, color: 'var(--text)' } }, '📎 Word에 도장 있으면?'),
+        h('div', { style: { marginLeft: 8, lineHeight: 1.8 } },
+          '1. Word 열기 → 파일 → 다른 이름으로 저장', h('br'),
+          '2. 파일 형식: ', h('strong', null, 'PDF'), h('br'),
+          '3. 저장 → 여기에 그 PDF 업로드', h('br'),
+          '4. 원본 서식·도장·이미지 완벽 유지',
+        ),
+      ),
     );
   }
   
