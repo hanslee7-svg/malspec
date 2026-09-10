@@ -612,6 +612,12 @@ const h = React.createElement;
 const SUPABASE_URL = 'https://ivbubhfkavaputcgovpk.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2YnViaGZrYXZhcHV0Y2dvdnBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2OTA5NzYsImV4cCI6MjA5NTI2Njk3Nn0.CtDl9Svev0kne1dgHFs0mNOFzzNzOMLHWd6GZilEyj4';
 
+// 대시보드 접근 허용 이메일 (서명 링크는 무관)
+const ALLOWED_EMAILS = [
+  'hj.lee@noahlabs.co.kr',
+  'admin@noahsoftlab.com',
+];
+
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const FIELD_TYPES = [
@@ -767,42 +773,59 @@ function SignaturePad({ onSave, onCancel, initialData }) {
 function useAuth() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [notAllowed, setNotAllowed] = useState(false);
+  
+  const checkUser = (session) => {
+    const u = session?.user || null;
+    if (!u) {
+      setUser(null);
+      setNotAllowed(false);
+      return;
+    }
+    const email = (u.email || '').toLowerCase();
+    if (!ALLOWED_EMAILS.includes(email)) {
+      // 허용되지 않은 이메일 → 자동 로그아웃
+      setUser(null);
+      setNotAllowed(true);
+      supabase.auth.signOut();
+      return;
+    }
+    setUser(u);
+    setNotAllowed(false);
+  };
   
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user || null);
+      checkUser(data.session);
       setLoading(false);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_, session) => {
-      setUser(session?.user || null);
+      checkUser(session);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
   
-  return { user, loading };
+  return { user, loading, notAllowed, resetNotAllowed: () => setNotAllowed(false) };
 }
 
 function LoginModal({ onClose }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignup, setIsSignup] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
   const handleSubmit = async () => {
     setError('');
+    // 화이트리스트 사전 체크
+    if (!ALLOWED_EMAILS.includes(email.toLowerCase().trim())) {
+      setError('이 계정은 접근 권한이 없습니다.');
+      return;
+    }
     setLoading(true);
     try {
-      if (isSignup) {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        alert('가입 완료! 이메일 확인 후 로그인해주세요.');
-        setIsSignup(false);
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        onClose();
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email: email.toLowerCase().trim(), password });
+      if (error) throw error;
+      onClose();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -813,7 +836,7 @@ function LoginModal({ onClose }) {
   return h('div', { className: 'modal-backdrop', onClick: onClose },
     h('div', { className: 'modal', onClick: (e) => e.stopPropagation() },
       h('div', { className: 'modal-header' },
-        h('div', { className: 'modal-title' }, isSignup ? '가입' : '로그인'),
+        h('div', { className: 'modal-title' }, '🔐 관리자 로그인'),
         h('button', { className: 'modal-close', onClick: onClose }, '×'),
       ),
       h('div', { className: 'modal-body' },
@@ -822,7 +845,9 @@ function LoginModal({ onClose }) {
           h('input', { 
             className: 'field-input', type: 'email',
             value: email, onChange: (e) => setEmail(e.target.value),
-            placeholder: 'you@example.com',
+            onKeyDown: (e) => { if (e.key === 'Enter') handleSubmit(); },
+            placeholder: 'hj.lee@noahlabs.co.kr',
+            autoFocus: true,
           }),
         ),
         h('div', { className: 'form-row col-1' },
@@ -830,22 +855,21 @@ function LoginModal({ onClose }) {
           h('input', { 
             className: 'field-input', type: 'password',
             value: password, onChange: (e) => setPassword(e.target.value),
-            placeholder: '6자 이상',
+            onKeyDown: (e) => { if (e.key === 'Enter') handleSubmit(); },
+            placeholder: '••••••••',
           }),
         ),
-        error ? h('div', { style: { color: 'var(--error)', fontSize: 12, marginTop: 8 } }, error) : null,
-        h('div', { style: { fontSize: 12, marginTop: 12 } },
-          h('a', { 
-            href: '#', 
-            onClick: (e) => { e.preventDefault(); setIsSignup(!isSignup); },
-            style: { color: 'var(--primary)' } 
-          }, isSignup ? '← 로그인' : '가입하기 →'),
-        ),
+        error ? h('div', { 
+          style: { color: 'var(--error)', fontSize: 12, marginTop: 8, padding: 8, background: '#FCE4E4', borderRadius: 6 } 
+        }, '❌ ' + error) : null,
+        h('div', { 
+          style: { fontSize: 11, color: 'var(--text-sub)', marginTop: 12, padding: 8, background: 'var(--bg)', borderRadius: 6 } 
+        }, '🔒 허가된 관리자만 접근 가능합니다.'),
       ),
       h('div', { className: 'modal-footer' },
         h('button', { 
           className: 'btn-primary', onClick: handleSubmit, disabled: loading || !email || !password,
-        }, loading ? '처리 중...' : (isSignup ? '가입' : '로그인')),
+        }, loading ? '확인 중...' : '🔓 로그인'),
       ),
     ),
   );
@@ -1943,12 +1967,12 @@ function SignView({ token }) {
 
 // ============ Main App ============
 function App() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, notAllowed, resetNotAllowed } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
   const [view, setView] = useState('list'); // list | new | detail
   const [selectedContract, setSelectedContract] = useState(null);
   
-  // URL 파라미터로 수신자 뷰 진입
+  // URL 파라미터로 수신자 뷰 진입 (인증 무관)
   const signToken = getUrlParam('sign');
   
   if (signToken) {
@@ -1987,11 +2011,28 @@ function App() {
     ),
     
     h('div', { className: 'main' },
-      !user ? h('div', { className: 'card empty' },
+      notAllowed ? h('div', { className: 'card empty' },
+        h('div', { className: 'empty-icon' }, '🚫'),
+        h('div', { className: 'empty-title' }, '접근 권한 없음'),
+        h('div', { className: 'empty-desc' }, 
+          '이 계정은 말계약 대시보드 접근 권한이 없습니다.',
+          h('br'),
+          '허가된 관리자 계정으로 로그인해주세요.',
+        ),
+        h('button', { 
+          className: 'btn-primary', 
+          onClick: () => { resetNotAllowed(); setShowLogin(true); } 
+        }, '다시 로그인'),
+      )
+      : !user ? h('div', { className: 'card empty' },
         h('div', { className: 'empty-icon' }, '🔐'),
-        h('div', { className: 'empty-title' }, '로그인이 필요합니다'),
-        h('div', { className: 'empty-desc' }, '계약을 관리하려면 로그인해주세요'),
-        h('button', { className: 'btn-primary', onClick: () => setShowLogin(true) }, '로그인'),
+        h('div', { className: 'empty-title' }, '관리자 전용'),
+        h('div', { className: 'empty-desc' }, 
+          '말계약 대시보드는 허가된 관리자만 접근 가능합니다.',
+          h('br'),
+          h('span', { style: { fontSize: 11 } }, '※ 서명 링크를 받으신 분은 링크를 직접 클릭해주세요.'),
+        ),
+        h('button', { className: 'btn-primary', onClick: () => setShowLogin(true) }, '🔓 관리자 로그인'),
       )
       : view === 'list' ? h(ContractList, { 
           user,
